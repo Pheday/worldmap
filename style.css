@@ -95,6 +95,8 @@ button.link { border: none; background: none; padding: 0; color: var(--accent); 
 .country.s2, .dot.s2 { fill: var(--second); }
 .country.s3, .dot.s3 { fill: var(--third); }
 .country.s4, .dot.s4 { fill: var(--failed); }
+/* Границы между закрашенными странами — темнее и толще, иначе сливаются */
+.country.s1, .country.s2, .country.s3, .country.s4 { stroke: rgba(0, 0, 0, 0.5); stroke-width: 1; }
 .country.hint, .dot.hint { fill: var(--hint); animation: pulse 1s ease-in-out infinite alternate; }
 .country.flash, .dot.flash { fill: var(--failed); }
 @keyframes pulse { from { fill-opacity: 1; } to { fill-opacity: 0.45; } }
