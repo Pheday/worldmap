@@ -1,5 +1,5 @@
 // Строит иконку вкладки ../favicon.svg — упрощённая карта мира в проекции Робинсона.
-// Цвета из style.css: фон — --accent, суша — --land. Мелкие детали убраны, чтобы читалось в 16 px.
+// Цвета из style.css: фон — чуть светлее --accent, суша — --land. Мелкие детали убраны, чтобы читалось в 16 px.
 import fs from "fs";
 import mapshaper from "mapshaper";
 import { geoRobinson } from "d3-geo-projection";
@@ -7,7 +7,7 @@ import { geoRobinson } from "d3-geo-projection";
 const SIZE = 64;
 const PAD = 3;
 const RADIUS = 12;
-const COLORS = { ocean: "#2f6fb5", land: "#f3ecd9" };
+const COLORS = { ocean: "#5094d8", land: "#f3ecd9" };
 
 const src = fs.readFileSync("cache/ne_10m_admin_0_countries_rus.geojson", "utf8");
 const out = await mapshaper.applyCommands(
