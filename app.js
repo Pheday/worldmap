@@ -4,7 +4,7 @@
   const DATA = window.QUIZ_DATA;
   const SVG_NS = "http://www.w3.org/2000/svg";
   const W = DATA.width, H = DATA.height;
-  const MAX_ZOOM = 12;
+  const MAX_ZOOM = 30;
   const DOT_RADIUS = 4.5;
   const DRAG_THRESHOLD = 6;
 
