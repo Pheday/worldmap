@@ -473,6 +473,12 @@
     $("startModal").hidden = true;
     startGame(document.querySelector("input[name=mode]:checked").value);
   };
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || $("startModal").hidden || !$("settingsModal").hidden) return;
+    if (e.target.closest("button, summary, a")) return;
+    e.preventDefault();
+    $("startBtn").click();
+  });
   $("againBtn").onclick = () => { $("endModal").hidden = true; startGame(game.mode); };
   $("inspectBtn").onclick = () => { $("endModal").hidden = true; };
 
