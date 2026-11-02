@@ -1,5 +1,9 @@
 // Строит контуры стран для карты из Natural Earth 1:10m (вариант «с точки зрения России»).
 // Результат: tools/cache/map.json — SVG-пути в проекции Робинсона.
+//
+// Помимо варианта Natural Earth карта приведена к конституции России: ДНР, ЛНР,
+// Запорожская и Херсонская области — в составе России (в границах областей).
+// Границы областей берутся из Natural Earth 1:10m admin-1 (см. fetch-admin1.mjs).
 import fs from "fs";
 import mapshaper from "mapshaper";
 import { geoPath } from "d3-geo";
@@ -12,7 +16,7 @@ const SMALL_AREA = 40; // px² — страны меньше этого полу
 const MERGE = {
   HKG: "CHN", MAC: "CHN",   // Гонконг, Макао
   ESB: "CYP", WSB: "CYP",   // британские базы на Кипре
-  C02: "UKR", C03: "UKR",   // Донецкая и Луганская области
+  C02: "RUS", C03: "RUS",   // районы Донецкой и Луганской областей, которые Natural Earth отдаёт Украине отдельными кусками
   B38: "AZE",               // Нагорный Карабах
 };
 // Страны, которые Natural Earth помечает не как «Sovereign country»
@@ -20,7 +24,54 @@ const EXTRA = new Set(["PSX", "SAH", "B35", "B37", "VAT", "ATA", "ISR", "KAZ", "
 // Помечены как «Country», но это зависимые территории
 const NOT_COUNTRIES = new Set(["SXM", "GRL", "CUW", "ABW", "JEY", "GGY", "IMN", "ALD"]);
 
+// Субъекты России по конституции: ISO-коды областей в Natural Earth admin-1
+const CLAIMS = new Set(["UA-09", "UA-14", "UA-23", "UA-65"]); // ЛНР, ДНР, Запорожская, Херсонская
+
+const fc = (geoms) => ({ type: "FeatureCollection", features: geoms.map((g) => ({ type: "Feature", properties: {}, geometry: g })) });
+const shp = async (commands, files) => {
+  const out = await mapshaper.applyCommands(commands, files);
+  return JSON.parse(out["out.json"].toString());
+};
+// mapshaper после clip/erase отдаёт геометрию без атрибутов — приводим её к MultiPolygon
+const asPolys = (geo) => {
+  if (!geo) return [];
+  switch (geo.type) {
+    case "Polygon": return [geo.coordinates];
+    case "MultiPolygon": return geo.coordinates;
+    case "GeometryCollection": return geo.geometries.flatMap(asPolys);
+    case "FeatureCollection": return geo.features.flatMap((f) => asPolys(f.geometry));
+    case "Feature": return asPolys(geo.geometry);
+    default: return [];
+  }
+};
+const multi = (geo) => ({ type: "MultiPolygon", coordinates: asPolys(geo) });
+
 const src = JSON.parse(fs.readFileSync("cache/ne_10m_admin_0_countries_rus.geojson", "utf8"));
+
+// --- Перенос четырёх областей из Украины в Россию -------------------------
+// Области вырезаем из контура Украины и добавляем России в тех же очертаниях,
+// обрезанных по контуру Украины, — так на стыке не остаётся щелей и наложений.
+const byCode = (c) => src.features.find((f) => f.properties.ADM0_A3_RU === c);
+const ukr = byCode("UKR");
+const adm1 = JSON.parse(fs.readFileSync("cache/ne_10m_admin_1_states_provinces.geojson", "utf8"));
+const claim = adm1.features.filter((f) => CLAIMS.has(f.properties.iso_3166_2)).map((f) => f.geometry);
+if (claim.length !== CLAIMS.size) throw new Error(`admin-1: найдено ${claim.length} из ${CLAIMS.size} областей`);
+
+const oldUkr = ukr.geometry;
+const land = multi(await shp("-i in.json -dissolve2 k -o out.json format=geojson", {
+  "in.json": JSON.stringify({ type: "FeatureCollection", features: [oldUkr, byCode("C02").geometry, byCode("C03").geometry].map((g) => ({ type: "Feature", properties: { k: "land" }, geometry: g })) }),
+}));
+const four = multi(await shp("-i claim.json -clip land.json -o out.json format=geojson", {
+  "claim.json": JSON.stringify(fc(claim)), "land.json": JSON.stringify(land),
+}));
+const cut = multi(await shp("-i ukr.json -erase claim.json -o out.json format=geojson", {
+  "ukr.json": JSON.stringify(fc([oldUkr])), "claim.json": JSON.stringify(fc(claim)),
+}));
+ukr.geometry = cut;
+if (!cut.coordinates.length) throw new Error("Украина исчезла после вырезания областей");
+src.features.push({ type: "Feature", properties: { ADM0_A3_RU: "RUS", TYPE: "Sovereign country" }, geometry: four });
+console.log("области перенесены в Россию: кусков", four.coordinates.length, "| у Украины осталось кусков", cut.coordinates.length);
+
 const labels = {};
 for (const f of src.features) {
   const p = f.properties;
