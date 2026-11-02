@@ -304,7 +304,11 @@
     figure.querySelector(".none")?.remove();
     if (src) {
       img.hidden = false;
+      // пока новая картинка грузится, браузер показывает старую — прячем её до загрузки
+      img.style.visibility = "hidden";
+      img.onload = img.onerror = () => { img.style.visibility = ""; };
       img.src = src;
+      if (img.complete) img.style.visibility = "";
     } else {
       img.hidden = true;
       img.removeAttribute("src");
