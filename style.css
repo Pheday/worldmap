@@ -47,18 +47,55 @@ button:disabled { opacity: 0.45; cursor: default; }
 
 /* Верхняя панель */
 .bar {
+  position: relative;
+  z-index: 5;
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 8px 16px;
+  padding: 10px 18px;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 10px rgba(60, 50, 30, 0.07);
   flex-wrap: wrap;
 }
-.title { flex: 1; font-weight: 600; font-size: 17px; }
-.stats { display: flex; gap: 14px; font-variant-numeric: tabular-nums; color: var(--muted); }
-.actions { display: flex; gap: 8px; }
-button.icon { width: 38px; padding: 7px 0; }
+.title { flex: 1; display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+.logo {
+  display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 9px;
+  background: linear-gradient(135deg, #3d82cc, #24588f);
+  box-shadow: 0 2px 6px rgba(47, 111, 181, 0.35);
+}
+.logo svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 1.6; }
+
+.ico { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.stats {
+  display: flex; align-items: stretch;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.stat { display: flex; align-items: center; gap: 7px; padding: 6px 14px; }
+.stat + .stat { border-left: 1px solid var(--line); }
+.stat .ico { color: var(--muted); width: 16px; height: 16px; }
+.stat-progress { flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; padding-top: 5px; padding-bottom: 6px; min-width: 96px; text-align: center; font-size: 14px; }
+.meter { display: block; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--first); transition: width .3s ease; }
+
+.actions { display: flex; align-items: center; gap: 6px; }
+.actions button { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 9px; font-weight: 500; transition: background .15s, border-color .15s, color .15s; }
+button.ghost { border-color: transparent; background: transparent; color: var(--text); }
+button.ghost:hover:not(:disabled) { background: var(--bg); border-color: var(--line); }
+button.ghost:disabled { opacity: 0.35; }
+.actions button.primary { padding: 0 16px 0 12px; box-shadow: 0 2px 6px rgba(47, 111, 181, 0.3); }
+.sep { width: 1px; height: 22px; margin: 0 4px; background: var(--line); }
+button.icon { width: 38px; padding: 7px 0; justify-content: center; }
+.actions button.icon { width: 36px; padding: 0; color: var(--muted); }
+.actions button.icon:hover { color: var(--text); }
+#soundBtn .off, #soundBtn.muted .on { display: none; }
+#soundBtn.muted .off { display: block; }
 button.link { border: none; background: none; padding: 0; color: var(--accent); text-decoration: underline; font-size: 14px; }
 
 /* Вопрос — внизу карты, над Антарктидой */
@@ -202,6 +239,13 @@ button.link { border: none; background: none; padding: 0; color: var(--accent); 
 @media (max-width: 640px) {
   .bar { padding: 6px 10px; gap: 8px; }
   .title { display: none; }
+  .stat { padding: 4px 10px; }
+  .stat-progress { min-width: 76px; }
+  .actions { gap: 2px; }
+  .actions button.icon { width: 34px; }
+  .sep { display: none; }
+  #menuBtn span { display: none; }
+  .actions button#menuBtn { width: 36px; padding: 0; justify-content: center; }
   .question { max-width: calc(100% - 24px); bottom: 10px; padding: 8px 14px; }
   .question-value { font-size: 18px; }
   .question-value img { height: 36px; }

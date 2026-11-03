@@ -376,7 +376,13 @@
     const mode = MODES[game.mode];
     $("questionLabel").textContent = mode.label;
     $("questionValue").innerHTML = mode.show(byCode[current()]);
-    $("progress").textContent = `${game.index} из ${game.queue.length}`;
+    setProgress(game.index);
+  }
+
+  function setProgress(done) {
+    const total = game.queue.length;
+    $("progress").textContent = `${done} из ${total}`;
+    $("progressBar").style.width = total ? `${(done / total) * 100}%` : "0";
   }
 
   function updateTimer() {
@@ -445,7 +451,7 @@
     $("dunnoBtn").disabled = $("enoughBtn").disabled = true;
     hideCard();
     $("question").hidden = true;
-    $("progress").textContent = `${Object.keys(game.results).length} из ${game.queue.length}`;
+    setProgress(Object.keys(game.results).length);
 
     const counts = [0, 0, 0, 0, 0];
     for (const r of Object.values(game.results)) counts[r]++;
@@ -490,12 +496,10 @@
   $("inspectBtn").onclick = () => { $("endModal").hidden = true; };
 
   function renderSoundButton() {
-    $("soundBtn").textContent = settings.sound ? "🔊" : "🔇";
+    $("soundBtn").classList.toggle("muted", !settings.sound);
     $("soundBtn").title = settings.sound ? "Звук включён" : "Звук выключен";
-    $("soundOption").checked = settings.sound;
   }
   $("soundBtn").onclick = () => { settings.sound = !settings.sound; saveSettings(); renderSoundButton(); };
-  $("soundOption").onchange = (e) => { settings.sound = e.target.checked; saveSettings(); renderSoundButton(); };
 
   for (const box of document.querySelectorAll("#cardOptions input")) {
     box.checked = settings[box.dataset.field];
