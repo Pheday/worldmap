@@ -45,6 +45,10 @@ async function worldBank(indicator) {
   const [, rows] = await (await fetch(url, { headers: { "User-Agent": UA } })).json();
   return rows.filter((r) => r.value != null).map((r) => ({ iso: r.countryiso3code, year: +r.date, value: r.value }));
 }
-const wb = { population: await worldBank("SP.POP.TOTL"), area: await worldBank("AG.SRF.TOTL.K2") };
-console.log("worldbank", wb.population.length, wb.area.length);
+const wb = {
+  population: await worldBank("SP.POP.TOTL"),
+  area: await worldBank("AG.SRF.TOTL.K2"),
+  gdpPpp: await worldBank("NY.GDP.PCAP.PP.CD"), // ВВП по ППС на душу, текущие международные доллары
+};
+console.log("worldbank", wb.population.length, wb.area.length, wb.gdpPpp.length);
 fs.writeFileSync("cache/worldbank.json", JSON.stringify(wb));

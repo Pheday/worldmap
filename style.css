@@ -161,6 +161,7 @@ button.link { border: none; background: none; padding: 0; color: var(--accent); 
 .card-facts dt { color: var(--muted); }
 .card-facts dd { margin: 0; }
 .card-facts small { color: var(--muted); }
+.card-facts .nowrap { white-space: nowrap; }
 
 /* Модальные окна */
 .modal {

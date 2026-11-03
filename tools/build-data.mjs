@@ -24,7 +24,11 @@ function latest(rows) {
   const year = Math.max(...Object.keys(counts).filter((y) => counts[y] >= max - 5).map(Number));
   return { year, values: Object.fromEntries(rows.filter((r) => r.year === year).map((r) => [r.iso, r.value])) };
 }
-const wbPop = latest(wb.population), wbArea = latest(wb.area);
+const wbPop = latest(wb.population), wbArea = latest(wb.area), wbGdp = latest(wb.gdpPpp);
+
+// ВВП: если за общий год данных нет — самый свежий год по этой стране
+const gdpFallback = {};
+for (const r of wb.gdpPpp) if (!gdpFallback[r.iso] || r.year > gdpFallback[r.iso].year) gdpFallback[r.iso] = r;
 
 // Запасной вариант из Wikidata: самая свежая оценка
 const wdPop = {};
@@ -43,15 +47,18 @@ const fileName = (url) => url && decodeURIComponent(url.split("/").pop());
 const countries = {};
 for (const { code } of map.countries) {
   const q = wd.qids[code];
-  const iso = first(isos[q]) || ({ PSX: "PSE", SAH: "ESH" })[code];
+  const iso = first(isos[q]) || ({ PSX: "PSE", SAH: "ESH", NLD: "NLD" })[code];
   const pop = code === "ATA" ? null : wbPop.values[iso] != null ? { value: wbPop.values[iso], year: wbPop.year } : wdPop[q];
   const area = wbArea.values[iso] || wdArea[q];
+  const gdp = wbGdp.values[iso] != null ? { value: wbGdp.values[iso], year: wbGdp.year } : gdpFallback[iso];
   countries[code] = {
     name: NAME[code] || first(names[q]),
     capital: code in CAPITAL ? CAPITAL[code] : first(caps[q]),
     population: pop ? Math.round(pop.value) : null,
     populationYear: pop?.year || null,
     area: area ? (area < 10 ? +area.toFixed(2) : Math.round(area)) : null,
+    gdp: gdp ? Math.round(gdp.value) : null,
+    gdpYear: gdp?.year || null,
     currency: CURRENCY[code] || [...(curs[q] || [])].map(lowerFirst),
     language: LANGUAGE[code] || [...(langs[q] || [])].map(cleanLang),
     flagFile: FLAG_FILE[code] || fileName(first(flags[q])),
@@ -66,8 +73,8 @@ const ref = process.argv[2] && JSON.parse(fs.readFileSync(process.argv[2], "utf8
 const refCaps = new Set(ref ? ref.map((r) => r.cap) : []);
 for (const [code, c] of Object.entries(countries)) {
   const flags = [!c.capital && code !== "ATA" && "НЕТ СТОЛИЦЫ", ref && c.capital && !refCaps.has(c.capital) && "столица≠справочник",
-    !c.population && "нет населения", !c.area && "нет площади", !c.currency.length && "нет валюты",
+    !c.population && "нет населения", !c.area && "нет площади", !c.gdp && "нет ВВП",!c.currency.length && "нет валюты",
     !c.language.length && "нет языка", !c.flagFile && "нет флага", !c.armsFile && "нет герба"].filter(Boolean);
-  console.log(`${code} ${c.name} | ${c.capital} | ${c.population} (${c.populationYear}) | ${c.area} | ${c.currency.join(", ")} | ${c.language.join(", ")}${c.armsIsEmblem ? " | эмблема" : ""}${flags.length ? "  <<< " + flags.join("; ") : ""}`);
+  console.log(`${code} ${c.name} | ${c.capital} | ${c.population} (${c.populationYear}) | ${c.area} | ${c.gdp} (${c.gdpYear}) | ${c.currency.join(", ")} | ${c.language.join(", ")}${c.armsIsEmblem ? " | эмблема" : ""}${flags.length ? "  <<< " + flags.join("; ") : ""}`);
 }
-console.log("Население WB:", wbPop.year, "Площадь WB:", wbArea.year);
+console.log("Население WB:", wbPop.year, "Площадь WB:", wbArea.year, "ВВП WB:", wbGdp.year);

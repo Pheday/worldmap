@@ -21,7 +21,7 @@
 
   const SETTINGS_KEY = "countries-quiz-settings";
   const settings = {
-    flag: true, arms: false, capital: true, population: true, area: true, currency: true, language: true,
+    flag: true, arms: false, capital: true, population: true, area: true, gdp: true, currency: true, language: true,
     sound: true,
   };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}")); } catch (e) { /* без сохранения */ }
@@ -269,6 +269,12 @@
   const card = $("card");
   const fmt = (n) => n.toLocaleString("ru-RU");
 
+  // Место по ВВП среди стран, по которым есть данные
+  const gdpRanked = DATA.countries.filter((c) => c.gdp).sort((a, b) => b.gdp - a.gdp);
+  const gdpRank = Object.fromEntries(gdpRanked.map((c, i) => [c.code, i + 1]));
+  const gdpText = (c) => !c.gdp ? "нет данных"
+    : `<span class="nowrap">${fmt(c.gdp)} $ (${gdpRank[c.code]}/${gdpRanked.length})</span> <small>(на душу, ${c.gdpYear})</small>`;
+
   let cardState = null; // что сейчас в карточке — чтобы перерисовать при смене настроек
 
   function showCard(code, verdict, verdictClass, clientX, clientY) {
@@ -289,6 +295,7 @@
       ["capital", "Столица", c.capital || "нет"],
       ["population", "Население", c.population ? `${fmt(c.population)} <small>(${c.populationYear})</small>` : "нет постоянного населения"],
       ["area", "Площадь", c.area ? `${fmt(c.area)} км²` : "—"],
+      ["gdp", `<span title="ВВП по ППС на душу населения, международные доллары">ВВП по ППС</span>`, gdpText(c)],
       ["currency", c.currency.length > 1 ? "Валюты" : "Валюта", c.currency.join(", ") || "—"],
       ["language", c.language.length > 1 ? "Языки" : "Язык", c.language.join(", ") || "—"],
     ].filter(([field]) => settings[field]);
