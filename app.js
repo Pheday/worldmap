@@ -273,7 +273,7 @@
   const gdpRanked = DATA.countries.filter((c) => c.gdp).sort((a, b) => b.gdp - a.gdp);
   const gdpRank = Object.fromEntries(gdpRanked.map((c, i) => [c.code, i + 1]));
   const gdpText = (c) => !c.gdp ? "нет данных"
-    : `<span class="nowrap">${fmt(c.gdp)} $ (${gdpRank[c.code]}/${gdpRanked.length})</span> <small>(на душу, ${c.gdpYear})</small>`;
+    : `<span class="nowrap" title="На душу населения, место в мире">${fmt(c.gdp)} $ (${gdpRank[c.code]}/${gdpRanked.length}) <small>(${c.gdpYear})</small></span>`;
 
   let cardState = null; // что сейчас в карточке — чтобы перерисовать при смене настроек
 
