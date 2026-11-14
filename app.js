@@ -832,7 +832,6 @@
   document.addEventListener("click", (e) => { if (!langMenu.hidden && !e.target.closest("#langPicker")) setLangMenu(false); });
   const openSettings = () => { $("settingsModal").hidden = false; };
   $("settingsBtn").onclick = openSettings;
-  $("startSettingsBtn").onclick = openSettings;
   const closeSettings = () => { $("settingsModal").hidden = true; };
   $("settingsClose").onclick = $("settingsX").onclick = closeSettings;
 
