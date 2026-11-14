@@ -6,6 +6,7 @@
   const W = DATA.width, H = DATA.height;
   const MAX_ZOOM = 30;
   const DOT_RADIUS = 4.5;
+  const CAPITAL_RADIUS = 0.9;
   const DRAG_THRESHOLD = 6;
 
   const byCode = Object.fromEntries(DATA.countries.map((c) => [c.code, c]));
@@ -126,11 +127,15 @@
 
   const shapes = {}; // code -> [path, dot?]
   const countryLayer = el("g"), dotLayer = el("g");
-  // Столица выбранной страны: точка и подпись, их размер на экране не зависит от масштаба
-  const capMarker = el("g", { class: "capital-marker" });
-  capMarker.append(el("circle", { r: 3.5 }), el("text", { x: 7, y: 4 }));
-  capMarker.style.display = "none";
-  viewport.append(countryLayer, dotLayer, capMarker);
+  // Столицы — точки без подписей (название есть в карточке); у стран-кружков точку не ставим
+  const capitalLayer = el("g", { class: "capitals" });
+  const capitalDots = {}; // code -> circle
+  viewport.append(countryLayer, capitalLayer, dotLayer);
+  for (const c of DATA.countries) {
+    if (c.capitalXY && !c.dot) {
+      capitalDots[c.code] = capitalLayer.appendChild(el("circle", { cx: c.capitalXY[0], cy: c.capitalXY[1], class: "capital" }));
+    }
+  }
   for (const c of DATA.countries) {
     const path = el("path", { d: c.d, class: "country" });
     path.dataset.code = c.code;
@@ -166,18 +171,21 @@
     // Кружки мелких стран не раздуваются при приближении
     const r = DOT_RADIUS / Math.sqrt(view.k);
     for (const dot of dotLayer.children) dot.setAttribute("r", r);
-    if (capMarker.dataset.x) {
-      capMarker.setAttribute("transform", `translate(${capMarker.dataset.x} ${capMarker.dataset.y}) scale(${1 / view.k})`);
-    }
+    // Точки столиц при приближении растут медленно: k^0.2 на экране
+    const cr = CAPITAL_RADIUS / Math.pow(view.k, 0.8);
+    for (const dot of capitalLayer.children) dot.setAttribute("r", dot.classList.contains("selected") ? cr * 1.8 : cr);
   }
 
-  function showCapitalMarker(c) {
-    const xy = settings.capitalOnMap && c?.capitalXY;
-    capMarker.style.display = xy ? "" : "none";
-    if (!xy) { delete capMarker.dataset.x; return; }
-    [capMarker.dataset.x, capMarker.dataset.y] = xy;
-    capMarker.querySelector("text").textContent = tr(c, "capital");
+  let selectedCapital = null;
+  function selectCapital(code) {
+    selectedCapital?.classList.remove("selected");
+    selectedCapital = capitalDots[code] || null;
+    selectedCapital?.classList.add("selected");
     applyView();
+  }
+
+  function showCapitals() {
+    capitalLayer.style.display = settings.capitalOnMap ? "" : "none";
   }
 
   function toSvgPoint(clientX, clientY) {
@@ -314,7 +322,7 @@
     $("cardVerdict").textContent = verdict ? verdict() : "";
     $("cardVerdict").className = "card-verdict " + (verdictClass || "");
     $("cardName").textContent = tr(c, "name");
-    showCapitalMarker(c);
+    selectCapital(code);
 
     setImage("cardFlag", c.flag, t("noFlag"));
     setImage("cardArms", c.arms, t("noArms"));
@@ -372,7 +380,7 @@
     card.style.top = top + "px";
   }
 
-  function hideCard() { card.hidden = true; cardState = null; showCapitalMarker(null); }
+  function hideCard() { card.hidden = true; cardState = null; selectCapital(null); }
 
   function redrawCard() {
     if (cardState) showCard(cardState.code, cardState.verdict, cardState.verdictClass, cardState.clientX, cardState.clientY);
@@ -549,6 +557,7 @@
     box.onchange = () => {
       settings[box.dataset.field] = box.checked;
       saveSettings();
+      showCapitals();
       redrawCard();
     };
   }
@@ -579,5 +588,6 @@
   $("settingsClose").onclick = () => { $("settingsModal").hidden = true; };
 
   applyLanguage();
+  showCapitals();
   applyView();
 })();

@@ -147,13 +147,10 @@ button.link { border: none; background: none; padding: 0; color: var(--accent); 
 .country.s1, .country.s2, .country.s3, .country.s4 { stroke: rgba(0, 0, 0, 0.5); stroke-width: 1; }
 .country.hint, .dot.hint { fill: var(--hint); animation: pulse 1s ease-in-out infinite alternate; }
 .country.flash, .dot.flash { fill: var(--failed); }
-/* Столица выбранной страны */
-.capital-marker { pointer-events: none; }
-.capital-marker circle { fill: #fff; stroke: var(--text); stroke-width: 1.6; }
-.capital-marker text {
-  font-size: 13px; font-weight: 600; fill: var(--text);
-  stroke: rgba(255, 255, 255, 0.9); stroke-width: 3.5px; stroke-linejoin: round; paint-order: stroke;
-}
+/* Столицы: мелкие точки, у выбранной страны — крупнее, с белой обводкой */
+.capitals { pointer-events: none; }
+.capital { fill: rgba(31, 35, 40, 0.55); }
+.capital.selected { fill: var(--text); stroke: #fff; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
 @keyframes pulse { from { fill-opacity: 1; } to { fill-opacity: 0.45; } }
 
 .zoom { position: absolute; right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
