@@ -4,8 +4,9 @@
   const DATA = window.QUIZ_DATA;
   const SVG_NS = "http://www.w3.org/2000/svg";
   const W = DATA.width, H = DATA.height;
-  const MAX_ZOOM = 30;
-  const SMALL_CAPITAL_MIN_PX = 40; // с какого размера страны-кружка на экране показывать её столицу
+  const MAX_ZOOM = 150;
+  const SMALL_CAPITAL_MIN_PX = 24; // с какого размера страны-кружка на экране показывать её столицу
+  const SMALL_CAPITAL_ALWAYS_ZOOM = 40; // при таком приближении столицы стран-кружков видны всегда
   const DOT_RADIUS = 4.5;
   const DRAG_THRESHOLD = 6;
 
@@ -24,11 +25,8 @@
   /* ---------- Языки ---------- */
 
   const STR = window.I18N;
-  // Без сохранённого выбора — по языку браузера: русский для русского и соседних, китайский, иначе английский
-  if (!STR[settings.lang]) {
-    const nav = (navigator.languages?.[0] || navigator.language || "").toLowerCase();
-    settings.lang = /^(ru|uk|be|kk|ky|uz|tg|hy|az|ka)\b/.test(nav) ? "ru" : nav.startsWith("zh") ? "zh" : "en";
-  }
+  // Без сохранённого выбора — русский
+  if (!STR[settings.lang]) settings.lang = "ru";
   const t = (key) => STR[settings.lang][key] ?? STR.ru[key];
   // Текст страны на текущем языке: name, capital, currency, language хранятся как { ru, en, zh }
   const tr = (c, field) => c[field]?.[settings.lang] ?? c[field]?.ru;
@@ -174,17 +172,22 @@
     view.x = Math.min(0, Math.max(W * (1 - view.k), view.x));
     view.y = Math.min(0, Math.max(H * (1 - view.k), view.y));
     viewport.setAttribute("transform", `translate(${view.x} ${view.y}) scale(${view.k})`);
-    // Кружки мелких стран не раздуваются при приближении
-    const r = DOT_RADIUS / Math.sqrt(view.k);
+    // Кружки мелких стран почти не растут на экране при приближении и становятся прозрачнее,
+    // чтобы сквозь них был виден контур самой страны
+    const r = DOT_RADIUS / Math.pow(view.k, 0.8);
     for (const dot of dotLayer.children) dot.setAttribute("r", r);
-    // Размеры знаков столиц задаём в пикселях экрана; при приближении они чуть растут
+    dotLayer.style.setProperty("--dot-fill", String(Math.max(0.12, 0.9 - 0.39 * Math.log2(view.k))));
+    // Размеры знаков столиц задаём в пикселях экрана; при приближении они растут,
+    // а на большом экране они изначально крупнее
     const pxPerUnit = (svg.getScreenCTM()?.a || 1) * view.k;
-    const grow = Math.pow(view.k, 0.18);
+    const screen = Math.min(1.8, Math.max(1, svg.clientWidth / 1100));
+    const grow = screen * Math.min(4, Math.pow(view.k, 0.3));
     const cr = (1.3 * grow) / pxPerUnit;
     for (const dot of capitalLayer.children) dot.setAttribute("r", cr);
     for (const dot of smallCapitalLayer.children) {
       dot.setAttribute("r", cr);
-      dot.style.display = smallSize(dot) * pxPerUnit >= SMALL_CAPITAL_MIN_PX ? "" : "none";
+      const visible = view.k >= SMALL_CAPITAL_ALWAYS_ZOOM || smallSize(dot) * pxPerUnit >= SMALL_CAPITAL_MIN_PX;
+      dot.style.display = visible ? "" : "none";
     }
     // На обзорном масштабе точки бледнее, к приближению ×4 — в полную силу
     const fade = String(Math.min(1, 0.55 + 0.45 * Math.log(view.k) / Math.log(4)));

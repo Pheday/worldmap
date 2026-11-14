@@ -142,7 +142,7 @@ button.link { border: none; background: none; padding: 0; color: var(--accent); 
 .other { fill: var(--other); stroke: var(--border); stroke-width: 0.4; vector-effect: non-scaling-stroke; pointer-events: none; }
 .country { fill: var(--land); stroke: var(--border); stroke-width: 0.5; vector-effect: non-scaling-stroke; cursor: pointer; }
 .country:hover, .country.hover { fill: var(--land-hover); }
-.dot { fill: var(--land); stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; cursor: pointer; fill-opacity: 0.9; }
+.dot { fill: var(--land); stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; cursor: pointer; fill-opacity: var(--dot-fill, 0.9); }
 .dot:hover, .dot.hover { fill: var(--land-hover); }
 .country.s1, .dot.s1 { fill: var(--first); }
 .country.s2, .dot.s2 { fill: var(--second); }
