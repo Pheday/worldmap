@@ -37,7 +37,14 @@ const targetCode = () => page.evaluate(() => {
   return QUIZ_DATA.countries.find((c) => (img ? img.getAttribute("src") === c.flag : Object.values(c.name).includes(v.textContent) || Object.values(c.capital || {}).includes(v.textContent))).code;
 });
 
-await page.select("#langSelect", "ru");
+// Язык выбирается в выпадающем меню у флажка в шапке. Кликаем через DOM: в начале шапку
+// закрывает затемнение стартового диалога
+const setLang = (lang) => page.evaluate((lang) => {
+  document.getElementById("langBtn").click();
+  document.querySelector(`#langMenu li[data-lang="${lang}"]`).click();
+}, lang);
+
+await setLang("ru");
 await page.click("#startBtn");
 let target = await targetCode();
 const wrong = target === "FRA" ? "DEU" : "FRA";
@@ -87,7 +94,7 @@ await shot(page, "5-end");
 console.log("итог:", await page.$eval("#endStats", (e) => e.innerText.replace(/\n/g, " ")));
 
 for (const lang of ["en", "zh"]) {
-  await page.select("#langSelect", lang);
+  await setLang(lang);
   await shot(page, "5-end-" + lang);
   console.log(lang, "итог:", await page.$eval("#endTitle", (e) => e.textContent), "|", await page.$eval("#endStats", (e) => e.innerText.replace(/\n/g, " ")));
 }
@@ -95,10 +102,24 @@ await page.click("#inspectBtn");
 await click("CHN");
 console.log("zh карточка:", await page.$eval("#cardName", (e) => e.textContent), "|", await page.$eval("#cardFacts", (e) => e.innerText.replace(/\n/g, " | ")));
 await shot(page, "5b-zh-card");
-await page.select("#langSelect", "en");
+await setLang("en");
 console.log("en карточка:", await page.$eval("#cardName", (e) => e.textContent), "|", await page.$eval("#cardFacts", (e) => e.innerText.replace(/\n/g, " | ")));
 await shot(page, "5c-en-card");
-await page.select("#langSelect", "ru");
+// Серые территории: кружками не рисуются, карточка — со ссылкой на статью о статусе
+console.log("серых кружков:", await page.$$eval(".dot[data-territory]", (e) => e.length));
+await page.keyboard.press("Escape");
+const grl = await page.evaluate(() => {
+  const r = document.querySelector('path[data-territory="GRL"]').getBoundingClientRect();
+  return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+});
+await page.mouse.click(grl.x, grl.y);
+await new Promise((r) => setTimeout(r, 150));
+console.log("Гренландия:", await page.$eval("#cardName", (e) => e.textContent), "| статус:",
+  await page.$eval("#cardFacts a", (e) => e.textContent + " → " + decodeURIComponent(e.href)));
+await shot(page, "5d-grey-card");
+await page.keyboard.press("Escape");
+
+await setLang("ru");
 await page.click("#menuBtn");
 await page.click("input[value=countries]");
 await page.click("#startBtn");
