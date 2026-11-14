@@ -263,7 +263,8 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .card-facts .nowrap { white-space: nowrap; }
 .card-note { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
 .card-note[hidden] { display: none; }
-.card-note a { display: inline-block; margin-top: 6px; color: var(--accent); }
+.card-name a { color: inherit; text-decoration: underline; text-decoration-color: var(--muted); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.card-name a:hover { color: var(--accent); text-decoration-color: currentColor; }
 .card-facts a { color: var(--accent); }
 
 /* Модальные окна */

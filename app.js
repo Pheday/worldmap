@@ -447,11 +447,28 @@
   let press = null; // { code, x, y, moved }
   let pinch = null;
 
+  // Что под указателем: { code } страны или { territory }. При включённой обводке клик внутри кружка мелкой
+  // особой территории (Бир-Тавиль, Гибралтар…) достаётся ей, а не соседней стране, которая лежит поверх
+  // её прозрачной кликабельной фигуры. Только для мелких на экране: у крупных (Гренландия) выпуклый
+  // силуэт может захватывать куски соседей, а их собственные границы и так хорошо видны
+  const RING_PRIORITY_PX = 40;
+  function pickTarget(e) {
+    const code = e.target.dataset.code || null, territory = e.target.dataset.territory || null;
+    if (code && settings.greyRings && hitLayer.parentNode) {
+      for (const node of document.elementsFromPoint(e.clientX, e.clientY)) {
+        if (!node.classList?.contains("ring-hit")) continue;
+        const r = node.getBoundingClientRect();
+        if (Math.max(r.width, r.height) <= RING_PRIORITY_PX) return { code: null, territory: node.dataset.territory };
+      }
+    }
+    return { code, territory };
+  }
+
   svg.addEventListener("pointerdown", (e) => {
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     svg.setPointerCapture(e.pointerId);
     if (pointers.size === 1) {
-      press = { code: e.target.dataset.code || null, territory: e.target.dataset.territory || null, x: e.clientX, y: e.clientY, moved: false };
+      press = { ...pickTarget(e), x: e.clientX, y: e.clientY, moved: false };
     } else if (pointers.size === 2) {
       press = null;
       const [a, b] = [...pointers.values()];
@@ -506,13 +523,13 @@
   let hovered = null, hoveredTerritory = null;
 
   function hover(e) {
-    const code = e.target.dataset.code || null;
+    const target = pickTarget(e), code = target.code;
     if (code !== hovered) {
       if (hovered) setClass(hovered, "hover", false);
       if (code) setClass(code, "hover", true);
       hovered = code;
     }
-    const terr = territories[e.target.dataset.territory] || null;
+    const terr = territories[target.territory] || null;
     if (terr !== hoveredTerritory) {
       for (const x of hoveredTerritory?.els || []) x.classList.remove("hover");
       for (const x of terr?.els || []) x.classList.add("hover");
@@ -602,7 +619,9 @@
     selectCapital(null);
     $("cardVerdict").textContent = "";
     $("cardVerdict").className = "card-verdict";
-    $("cardName").textContent = tr(o, "name");
+    // Заголовок — ссылка на статью о территории
+    const url = o.wikiSearch ? "https://ru.ruwiki.ru/w/index.php?search=" + encodeURIComponent(o.wiki) : ruwikiUrl(o.wiki);
+    $("cardName").innerHTML = `<a href="${url}" target="_blank" rel="noopener" title="${escapeHtml(t("wikiLink"))}">${escapeHtml(tr(o, "name"))}</a>`;
     document.querySelector(".card-images").hidden = true;
     const names = (codes) => escapeHtml(codes.map((c) => tr(byCode[c], "name")).join(settings.lang === "zh" ? "、" : ", "));
     const statusArticle = STATUS_WIKI[o.kind];
@@ -616,8 +635,7 @@
     ].filter(Boolean);
     $("cardFacts").innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
     const why = { disputed: "whyDisputed", border: "whyDisputed", nullius: "whyNullius", ata: "whyAntarctica" }[o.kind] || "whyNotState";
-    const url = o.wikiSearch ? "https://ru.ruwiki.ru/w/index.php?search=" + encodeURIComponent(o.wiki) : ruwikiUrl(o.wiki);
-    $("cardNote").innerHTML = `${escapeHtml(t(why))}<br><a href="${url}" target="_blank" rel="noopener">${t("wikiLink")}</a>`;
+    $("cardNote").textContent = t(why);
     $("cardNote").hidden = false;
     card.hidden = false;
     placeCard(o.els, null, clientX, clientY);
