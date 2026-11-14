@@ -278,8 +278,6 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .options { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; text-align: left; margin: 0 auto 18px; width: fit-content; }
 .options label { cursor: pointer; }
 .options.single { grid-template-columns: 1fr; }
-.options label.sub { padding-left: 24px; }
-.options label.disabled { color: var(--muted); cursor: default; }
 .section-title { font-weight: 600; margin: 28px 0 10px; }
 .modal-box {
   position: relative;

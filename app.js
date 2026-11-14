@@ -21,7 +21,7 @@
   const SETTINGS_KEY = "countries-quiz-settings";
   const settings = {
     flag: true, arms: false, capital: true, population: true, area: true, gdp: true, currency: true, language: true,
-    sound: true, lang: null, greyRings: false, greyLabels: true,
+    sound: true, lang: null, greyRings: false,
   };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}")); } catch (e) { /* без сохранения */ }
 
@@ -352,10 +352,8 @@
     viewport.style.setProperty("--archi-outer", (2 * (RING_GAP + ARCHI_WIDTH)) / pxPerUnit);
     if (settings.greyRings) {
       if (!ringLayer.parentNode) { viewport.appendChild(ringLayer); viewport.insertBefore(hitLayer, otherLayer); }
-      if (settings.greyLabels) {
-        if (!ringLabelLayer.parentNode) svg.appendChild(ringLabelLayer);
-        placeRingLabels();
-      } else ringLabelLayer.remove();
+      if (!ringLabelLayer.parentNode) svg.appendChild(ringLabelLayer);
+      placeRingLabels();
     } else { ringLayer.remove(); hitLayer.remove(); ringLabelLayer.remove(); }
     svg.classList.toggle("grey-rings-on", settings.greyRings);
     updateScaleBar();
@@ -945,18 +943,10 @@
     box.onchange = () => {
       settings[box.dataset.field] = box.checked;
       saveSettings();
-      if (box.dataset.field === "greyRings" || box.dataset.field === "greyLabels") { applyView(); syncSubOptions(); }
+      if (box.dataset.field === "greyRings") applyView();
       else redrawCard();
     };
   }
-
-  // «Подписывать» имеет смысл только при включённой обводке
-  function syncSubOptions() {
-    const sub = document.querySelector('#settingsModal input[data-field="greyLabels"]');
-    sub.disabled = !settings.greyRings;
-    sub.closest("label").classList.toggle("disabled", !settings.greyRings);
-  }
-  syncSubOptions();
 
   // Переводит статичные тексты страницы и перерисовывает всё, что уже показано
   function applyLanguage() {
@@ -971,7 +961,7 @@
       if (on) { $("langFlag").src = li.querySelector("img").src; $("langCode").textContent = li.dataset.code; }
     }
     updateScaleBar();
-    if (settings.greyRings && settings.greyLabels) placeRingLabels();
+    if (settings.greyRings) placeRingLabels();
     renderSoundButton();
     if (game.over) setProgress(Object.keys(game.results).length);
     else showQuestion();
