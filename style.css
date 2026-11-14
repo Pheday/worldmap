@@ -160,6 +160,24 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .country.s1, .country.s2, .country.s3, .country.s4 { stroke: rgba(0, 0, 0, 0.5); stroke-width: 1; }
 .country.hint, .dot.hint { fill: var(--hint); animation: pulse 1s ease-in-out infinite alternate; }
 .country.flash, .dot.flash { fill: var(--failed); }
+/* Архипелаги: тонкая обводка всей территории; внутри — кликабельная область, у отгаданных прозрачно-зелёная.
+   opacity у самого контура (а не fill-opacity), чтобы заливка и раздувающая его обводка не накладывались */
+.archi-rings { pointer-events: none; }
+.archi-rings rect { fill: #6b5d3f; fill-opacity: 0.55; }
+.archi-rings .ring-outer, .archi-rings .ring-inner { stroke-linejoin: round; stroke-linecap: round; }
+.archi-rings .ring-outer { fill: white; stroke: white; stroke-width: var(--archi-outer); }
+.archi-rings .ring-inner { fill: black; stroke: black; stroke-width: var(--ring-inner); }
+.archi-area { fill: var(--land); stroke: var(--land); stroke-width: var(--ring-inner); stroke-linejoin: round; stroke-linecap: round; opacity: 0; pointer-events: all; cursor: pointer; }
+.archi-area:hover, .archi-area.hover { fill: var(--land-hover); stroke: var(--land-hover); opacity: 0.35; }
+/* Цвет результата, как у стран. Заливка лежит под сушей, острова не закрывает. Прозрачность разная: жёлтый,
+   оранжевый и красный при той же прозрачности, что и зелёный, смешиваются с голубым океаном в серый */
+.archi-area.s1 { fill: var(--first); stroke: var(--first); opacity: 0.16; }
+.archi-area.s2 { fill: var(--second); stroke: var(--second); opacity: 0.4; }
+.archi-area.s3 { fill: var(--third); stroke: var(--third); opacity: 0.4; }
+.archi-area.s4 { fill: var(--failed); stroke: var(--failed); opacity: 0.3; }
+.archi-area.hint { fill: var(--hint); stroke: var(--hint); animation: archi-pulse 1s ease-in-out infinite alternate; }
+.archi-area.flash { fill: var(--failed); stroke: var(--failed); opacity: 0.35; }
+@keyframes archi-pulse { from { opacity: 0.4; } to { opacity: 0.15; } }
 .capitals { pointer-events: none; }
 /* Столицы: светлые «шляпки» с тонкой обводкой в тон границ; выбранная — знак «кольцо с точкой» */
 .capital { fill: #fffaf0; stroke: #7d6d4c; stroke-width: 0.8; vector-effect: non-scaling-stroke; }

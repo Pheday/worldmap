@@ -72,7 +72,7 @@ await page.click("input[value=flags]");
 await page.click("#startBtn");
 await shot(page, "3-flags");
 await click("SLB");
-console.log("Соломоновы — кружок:", !!(await page.$('.dot[data-code="SLB"]')), "| точек столиц:", await page.$$eval(".capital", (e) => e.length), "| выделено:", await page.$$eval(".capital.selected", (e) => e.length));
+console.log("Соломоновы — обводка вместо кружка:", !!(await page.$('.archi-area[data-code="SLB"]')) && !(await page.$('.dot[data-code="SLB"]')), "| точек столиц:", await page.$$eval(".capital", (e) => e.length), "| выделено:", await page.$$eval(".capital.selected", (e) => e.length));
 await shot(page, "4a-solomon");
 await click("VAT");
 await shot(page, "4-vatican");

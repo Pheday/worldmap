@@ -121,6 +121,8 @@
   const viewport = el("g");
   svg.appendChild(viewport);
   viewport.appendChild(el("path", { d: DATA.sphere, class: "sphere" }));
+  // Обводки, уходящие за край карты через линию перемены дат, обрезаются по её контуру
+  viewport.appendChild(el("clipPath", { id: "sphereClip" })).appendChild(el("path", { d: DATA.sphere }));
   // Серые территории (не государства, спорные, ничейные) — кликабельны, по клику карточка с пояснением
   const otherLayer = viewport.appendChild(el("g"));
   const territories = {}; // code -> { ...данные, el }
@@ -154,7 +156,7 @@
     path.dataset.code = c.code;
     countryLayer.appendChild(path);
     shapes[c.code] = [path];
-    if (c.dot) {
+    if (c.dot && !c.outline) {
       const dot = el("circle", { cx: c.dot[0], cy: c.dot[1], r: DOT_RADIUS, class: "dot" });
       dot.dataset.code = c.code;
       dotLayer.appendChild(dot);
@@ -163,9 +165,8 @@
   }
 
   // Обводка серых территорий (включается в настройках) — чтобы было видно, какие они вообще есть.
-  // Силуэт o.outline (строит build-js.mjs) — выпуклые оболочки групп соседних островов; далёкие группы
-  // одной территории связаны «перемычками» по кратчайшему остову. Обводка идёт на RING_GAP пикселей
-  // экрана от силуэта, так что это плавная выпуклая фигура при любом масштабе.
+  // Силуэт o.outline (строит build-js.mjs) — одна выпуклая оболочка всех островов территории. Обводка идёт
+  // на RING_GAP пикселей экрана от силуэта, так что это плавная выпуклая фигура при любом масштабе.
   // Контур рисуется маской: белое — силуэт, раздутый на RING_GAP + RING_WIDTH, чёрное — раздутый на RING_GAP;
   // видна только полоска между ними. Маска у каждой территории своя. Чтобы обводки соседних территорий
   // не пересекались, в маску большей добавлены (чёрным) раздутые силуэты меньших соседей: меньшая
@@ -179,30 +180,27 @@
   const ringLabelLayer = el("g", { class: "grey-labels" }); // вне viewport: размер шрифта постоянный
   const ringLabels = [];
 
-  const shapes2 = Object.values(territories).filter((o) => o.outline).map((o) => {
-    const parts = o.outline.split("Z").filter(Boolean).map((ring) => {
+  // Рамки частей силуэта (o.outline из build-js.mjs) и всего силуэта. Частей больше одной только у оболочки,
+  // пересекающей линию перемены дат: она нарисована у обоих краёв карты
+  function silhouette(outline) {
+    const parts = outline.split("Z").filter(Boolean).map((ring) => {
+      if (ring.includes("A")) { // круг вокруг крошечного острова: M(cx−r),cy A r,r … — две дуги
+        const [x0, cy, r] = ring.slice(1).split(/[A, ]/).map(Number);
+        return { x0, y0: cy - r, x1: x0 + 2 * r, y1: cy + r, area: Math.PI * r * r };
+      }
       const pts = ring.slice(1).split("L").map((p) => p.split(",").map(Number));
       const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
       let area = 0;
       pts.forEach(([x, y], i) => { const [x2, y2] = pts[(i + 1) % pts.length]; area += x * y2 - x2 * y; });
       return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys), area: Math.abs(area / 2) };
     });
-    let d = o.outline;
-    // Перемычки между далёкими группами — кратчайший остов (алгоритм Прима)
-    const centers = parts.map((r) => [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2]);
-    const inTree = new Set([0]), dist = centers.map((c) => [Math.hypot(c[0] - centers[0][0], c[1] - centers[0][1]), 0]);
-    while (inTree.size < centers.length) {
-      let best = -1;
-      dist.forEach(([v], i) => { if (!inTree.has(i) && (best < 0 || v < dist[best][0])) best = i; });
-      const a = centers[best], b = centers[dist[best][1]];
-      d += `M${a[0]},${a[1]}L${b[0]},${b[1]}`;
-      inTree.add(best);
-      centers.forEach((c, i) => { const v = Math.hypot(c[0] - a[0], c[1] - a[1]); if (v < dist[i][0]) dist[i] = [v, best]; });
-    }
     const main = parts.reduce((p, q) => ((q.x1 - q.x0) * (q.y1 - q.y0) > (p.x1 - p.x0) * (p.y1 - p.y0) ? q : p));
     const box = { x0: Math.min(...parts.map((r) => r.x0)), y0: Math.min(...parts.map((r) => r.y0)), x1: Math.max(...parts.map((r) => r.x1)), y1: Math.max(...parts.map((r) => r.y1)) };
-    return { o, d, main, box, size: parts.reduce((s, r) => s + r.area, 0) };
-  });
+    // Обрезаем по краю карты только такие: у остальных обводка у края карты может выходить за него
+    const clip = parts.length > 1 ? { "clip-path": "url(#sphereClip)" } : {};
+    return { d: outline, clip, main, box, size: parts.reduce((s, r) => s + r.area, 0) };
+  }
+  const shapes2 = Object.values(territories).filter((o) => o.outline).map((o) => ({ o, ...silhouette(o.outline) }));
   // Сначала крупные: их кликабельные фигуры — снизу, чтобы мелкие соседи оставались доступны
   shapes2.sort((a, b) => b.size - a.size);
   shapes2.forEach((sh, n) => {
@@ -266,6 +264,30 @@
   }
 
 
+  // Островные государства с разбросанными островами (Тонга, Кирибати, Мальдивы…): вместо кружка на одном
+  // острове — тонкая обводка всей территории, как у серых территорий (силуэт строит build-js.mjs).
+  // Внутри обводки страну можно кликнуть; у отгаданной область внутри прозрачно закрашена цветом результата.
+  // Слой — под серыми территориями, чтобы Майотта внутри обводки Комор оставалась доступна
+  // Обводка тоньше, чем у серых территорий, — чтобы не отвлекала. У Кирибати и Фиджи фигура уходит за край
+  // карты и выходит с другого (см. build-js.mjs)
+  const ARCHI_WIDTH = 0.6; // px
+  const archiLayer = el("g", { class: "archi" }), archiRingLayer = el("g", { class: "archi-rings" });
+  viewport.insertBefore(archiLayer, otherLayer);
+  viewport.insertBefore(archiRingLayer, capitalLayer);
+  for (const c of DATA.countries) {
+    if (!c.outline) continue;
+    const { d, clip, box: b } = silhouette(c.outline);
+    const box = { x: b.x0 - RING_PAD, y: b.y0 - RING_PAD, width: b.x1 - b.x0 + 2 * RING_PAD, height: b.y1 - b.y0 + 2 * RING_PAD };
+    const id = "archiRing" + c.code;
+    const mask = archiRingLayer.appendChild(el("mask", { id, maskUnits: "userSpaceOnUse", ...box }));
+    mask.appendChild(el("path", { class: "ring-outer", d }));
+    mask.appendChild(el("path", { class: "ring-inner", d }));
+    archiRingLayer.appendChild(el("rect", { ...box, mask: `url(#${id})`, ...clip }));
+    const area = archiLayer.appendChild(el("path", { class: "archi-area", d, ...clip }));
+    area.dataset.code = c.code;
+    shapes[c.code].push(area);
+  }
+
   function el(tag, attrs = {}) {
     const node = document.createElementNS(SVG_NS, tag);
     for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
@@ -308,10 +330,11 @@
     capitalMark.style.display = selectedCapital && selectedCapital.style.display !== "none" ? "" : "none";
     markRing.setAttribute("r", (3.6 * grow) / pxPerUnit);
     markCore.setAttribute("r", (1.4 * grow) / pxPerUnit);
+    viewport.style.setProperty("--ring-outer", (2 * (RING_GAP + RING_WIDTH)) / pxPerUnit);
+    viewport.style.setProperty("--ring-inner", (2 * RING_GAP) / pxPerUnit);
+    viewport.style.setProperty("--archi-outer", (2 * (RING_GAP + ARCHI_WIDTH)) / pxPerUnit);
     if (settings.greyRings) {
       if (!ringLayer.parentNode) { viewport.appendChild(ringLayer); viewport.insertBefore(hitLayer, otherLayer); }
-      viewport.style.setProperty("--ring-outer", (2 * (RING_GAP + RING_WIDTH)) / pxPerUnit);
-      viewport.style.setProperty("--ring-inner", (2 * RING_GAP) / pxPerUnit);
       if (settings.greyLabels) {
         if (!ringLabelLayer.parentNode) svg.appendChild(ringLabelLayer);
         placeRingLabels();

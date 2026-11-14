@@ -56,12 +56,14 @@ const other = map.other.map(({ code, name, d }) => {
   if (!t.wiki) throw new Error(`нет статьи Рувики для территории ${code}`);
   return { code, d, dot: tinyDot(d), name: n, kind: t.kind, owner: t.owner, control: t.control, claim: t.claim, neither: t.neither, wiki: t.wiki, wikiSearch: t.wikiSearch };
 });
-// Силуэт каждой серой территории для обводки (настройка «Обводить серые территории»):
-// острова одной территории, лежащие ближе CLUSTER_GAP друг к другу, объединяются в группу,
-// группа — выпуклая оболочка. app.js раздувает её на постоянное число пикселей экрана, так что
-// обводка — плавная выпуклая фигура вокруг территории при любом масштабе (заливы и фьорды
-// внутри неё не важны), а далёкие группы одной территории связывает «перемычками».
-const CLUSTER_GAP = 4; // единиц карты
+// Силуэт для обводки: серые территории (настройка «Обводить серые территории») и островные государства,
+// чьи острова разбросаны по океану (у них обводка вместо кружка на одном острове).
+// Силуэт — одна выпуклая оболочка всех островов, без перемычек между далёкими частями. app.js раздувает её
+// на постоянное число пикселей экрана, так что обводка — плавная выпуклая фигура при любом масштабе
+// (заливы и фьорды внутри неё не важны).
+// Если острова лежат по обе стороны линии перемены дат (Кирибати, Фиджи), острова с западного края карты
+// сдвигаются на 360° долготы к восточному, оболочка строится по всем сразу и рисуется дважды — у восточного
+// края и её копия у западного; app.js обрезает их по краю карты, так что фигура уходит за край и выходит с другого
 const rings = (d) => d.split("Z").filter(Boolean).map((r) => r.slice(1).split("L").map((p) => p.split(",").map(Number)));
 function hull(points) { // выпуклая оболочка, монотонная цепочка Эндрю
   const p = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
@@ -75,34 +77,35 @@ function hull(points) { // выпуклая оболочка, монотонна
   };
   return [...half(p), ...half([...p].reverse())];
 }
+const f3 = (v) => Math.round(v * 1000) / 1000;
+const cx = projection.translate()[0];
+// На сколько сдвигается x при повороте на 360° долготы на высоте y: в проекции Робинсона x линеен по долготе
+const turn = (y) => 2 * (projection([180, projection.invert([cx, y])[1]])[0] - cx);
 // Мелкие острова после округления координат — отрезок или треугольник из 2–3 точек, и при сильном
-// приближении обводка вокруг них выходит капсулой или угловатой. Для них силуэт — описанный круг
-const SMALL_GROUP = 1; // единиц карты
-function silhouette(points) {
-  const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
+// приближении обводка вокруг них выходит капсулой или угловатой. Для них силуэт — описанный круг,
+// настоящий: в пути SVG это две дуги (A), а не многоугольник
+const SMALL = 2; // единиц карты
+function outline(d) {
+  const pts = rings(d).flat();
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
   const [x0, y0, x1, y1] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
-  if (Math.max(x1 - x0, y1 - y0) >= SMALL_GROUP) return hull(points);
-  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, r = Math.max(0.05, Math.hypot(x1 - x0, y1 - y0) / 2);
-  return Array.from({ length: 16 }, (_, i) => [cx + r * Math.cos(i * Math.PI / 8), cy + r * Math.sin(i * Math.PI / 8)].map((v) => Math.round(v * 1000) / 1000));
-}
-for (const o of other) {
-  if (o.code === "ATA") continue;
-  const parts = rings(o.d).map((pts) => {
-    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
-    return { pts, box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] };
-  });
-  const gap = (a, b) => Math.max(a.box[0] - b.box[2], b.box[0] - a.box[2], a.box[1] - b.box[3], b.box[1] - a.box[3]);
-  const groups = parts.map((q) => [q]);
-  for (let merged = true; merged;) {
-    merged = false;
-    for (let i = 0; i < groups.length && !merged; i++) for (let j = i + 1; j < groups.length && !merged; j++) {
-      if (groups[i].some((a) => groups[j].some((b) => gap(a, b) < CLUSTER_GAP))) {
-        groups[i].push(...groups.splice(j, 1)[0]);
-        merged = true;
-      }
-    }
+  if (Math.max(x1 - x0, y1 - y0) < SMALL) {
+    const r = f3(Math.max(0.05, Math.hypot(x1 - x0, y1 - y0) / 2)), cy = f3((y0 + y1) / 2), a = `A${r},${r} 0 1 0 `;
+    const l = f3((x0 + x1) / 2 - r), rt = f3((x0 + x1) / 2 + r);
+    return `M${l},${cy}${a}${rt},${cy}${a}${l},${cy}Z`;
   }
-  o.outline = groups.map((g) => "M" + silhouette(g.flatMap((q) => q.pts)).map((p) => p.join(",")).join("L") + "Z").join("");
+  const wrap = x1 - x0 > map.width / 2;
+  const h = hull(wrap ? pts.map(([x, y]) => [x < cx ? f3(x + turn(y)) : x, y]) : pts);
+  const path = (shift) => "M" + h.map(([x, y]) => [f3(x + shift(y)), y].join(",")).join("L") + "Z";
+  return path(() => 0) + (wrap ? path((y) => -turn(y)) : "");
+}
+for (const o of other) if (o.code !== "ATA") o.outline = outline(o.d);
+
+const ARCHIPELAGOS = new Set(["BHS", "SYC", "KIR", "MHL", "MUS", "COM", "STP", "CPV", "TON", "WSM", "SLB", "TUV", "MDV", "FSM", "VUT", "PLW", "TTO", "ATG", "VCT", "FJI"]);
+for (const c of countries) {
+  if (!ARCHIPELAGOS.has(c.code)) continue;
+  if (!c.dot) throw new Error(`${c.code} в ARCHIPELAGOS, но это не страна-кружок`);
+  c.outline = outline(c.d);
 }
 
 for (const code of Object.keys(TERRITORIES)) if (!other.some((o) => o.code === code)) console.log("в territories.mjs лишняя запись:", code);
