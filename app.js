@@ -4,7 +4,10 @@
   const DATA = window.QUIZ_DATA;
   const SVG_NS = "http://www.w3.org/2000/svg";
   const W = DATA.width, H = DATA.height;
-  const MAX_ZOOM = 150;
+  // Предел приближения — в пикселях экрана на единицу карты (≈ ×150 на экране шириной 1400 px), а не в разах:
+  // иначе на узком экране телефона, где вся карта мельче, приблизить можно было бы в 3–4 раза слабее, чем на ПК
+  const MAX_PX_PER_UNIT = 130, MIN_MAX_ZOOM = 150;
+  const maxZoom = () => Math.max(MIN_MAX_ZOOM, MAX_PX_PER_UNIT / (svg.getScreenCTM()?.a || 1));
   const SMALL_CAPITAL_MIN_PX = 24; // с какого размера страны-кружка на экране показывать её столицу
   const SMALL_CAPITAL_ALWAYS_ZOOM = 40; // при таком приближении столицы стран-кружков видны всегда
   const DOT_RADIUS = 4.5;
@@ -227,16 +230,26 @@
   ringLabels.sort((a, b) => b.size - a.size);
 
   function placeRingLabels() {
-    const s = svg.getScreenCTM()?.a || 1; // px экрана на единицу viewBox
-    ringLabelLayer.setAttribute("transform", `scale(${1 / s})`);
+    const ctm = svg.getScreenCTM(), rect = svg.getBoundingClientRect();
+    const s = ctm?.a || 1; // px экрана на единицу viewBox
+    // Подписи — в пикселях от левого верхнего угла самого svg. Карта вписана в него с полями (на телефоне —
+    // сверху и снизу), поэтому начало viewBox сдвинуто на (ox, oy)
+    const ox = ctm ? ctm.e - rect.left : 0, oy = ctm ? ctm.f - rect.top : 0;
+    ringLabelLayer.setAttribute("transform", `scale(${1 / s}) translate(${-ox} ${-oy})`);
     const sw = svg.clientWidth, sh = svg.clientHeight;
-    const placed = [];
     const off = RING_GAP + RING_WIDTH + 4, h = 13;
-    for (const l of ringLabels) {
+    const sx = (v) => ox + (view.x + v * view.k) * s, sy = (v) => oy + (view.y + v * view.k) * s;
+    // Рамки обводок на экране. Подпись не должна залезать на чужую обводку: иначе в тесной группе
+    // (Ангилья, Сен-Мартен, Синт-Мартен, Сен-Бартелеми на телефоне) подпись оказывается у соседнего
+    // кружка и непонятно, что где. Не нашлось места — подпись скрыта, пока карту не приблизят
+    const pad = RING_GAP + RING_WIDTH;
+    const rings = ringLabels.map(({ box: b }) => [sx(b.x0) - pad, sy(b.y0) - pad, sx(b.x1) + pad, sy(b.y1) + pad]);
+    const overlap = (r, q) => r[0] < q[2] && q[0] < r[2] && r[1] < q[3] && q[1] < r[3];
+    const placed = [];
+    for (const [i, l] of ringLabels.entries()) {
       l.el.textContent = tr(l.o, "name");
       l.el.style.display = "";
       const w = l.el.getComputedTextLength() + 6;
-      const sx = (v) => (view.x + v * view.k) * s, sy = (v) => (view.y + v * view.k) * s;
       const box = l.box;
       const [x0, x1, y0, y1] = [sx(box.x0), sx(box.x1), sy(box.y0), sy(box.y1)], cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
       // Места по очереди: над обводкой, под ней, справа, слева. [x, y базовой линии, выравнивание, рамка]
@@ -248,7 +261,11 @@
       ];
       // Территория целиком за краем экрана — подпись не нужна
       if (x1 < 0 || x0 > sw || y1 < 0 || y0 > sh) { l.el.style.display = "none"; continue; }
-      const free = (r) =>!placed.some((q) => r[0] < q[2] && q[0] < r[2] && r[1] < q[3] && q[1] < r[3]);
+      // Обводки, накрывающие собственную (Сен-Мартен у Синт-Мартена — это один остров: центр одной внутри
+      // другой), не мешают: их не обойти, и подпись иначе пропала бы при любом приближении
+      const inside = (p, q) => overlap([(p[0] + p[2]) / 2, (p[1] + p[3]) / 2, (p[0] + p[2]) / 2, (p[1] + p[3]) / 2], q);
+      const blockers = rings.filter((q, j) => j !== i && !inside(q, rings[i]) && !inside(rings[i], q));
+      const free = (r) => !placed.some((q) => overlap(r, q)) && !blockers.some((q) => overlap(r, q));
       const spot = spots.find(([, , , r]) => free(r));
       // За пределами экрана подпись не нужна и место не занимает
       if (!spot || spot[3][2] < 0 || spot[3][0] > sw || spot[3][3] < 0 || spot[3][1] > sh) { l.el.style.display = "none"; continue; }
@@ -303,7 +320,7 @@
   const view = { k: 1, x: 0, y: 0 };
 
   function applyView() {
-    view.k = Math.min(MAX_ZOOM, Math.max(1, view.k));
+    view.k = Math.min(maxZoom(), Math.max(1, view.k));
     view.x = Math.min(0, Math.max(W * (1 - view.k), view.x));
     view.y = Math.min(0, Math.max(H * (1 - view.k), view.y));
     viewport.setAttribute("transform", `translate(${view.x} ${view.y}) scale(${view.k})`);
@@ -406,7 +423,7 @@
 
   function zoomAt(factor, clientX, clientY) {
     const p = toSvgPoint(clientX, clientY);
-    const k = Math.min(MAX_ZOOM, Math.max(1, view.k * factor));
+    const k = Math.min(maxZoom(), Math.max(1, view.k * factor));
     view.x = p.x - (p.x - view.x) * (k / view.k);
     view.y = p.y - (p.y - view.y) * (k / view.k);
     view.k = k;
