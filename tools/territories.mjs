@@ -59,10 +59,10 @@ export const TERRITORIES = {
   B92: { kind: "disputed", control: ["BRA"], claim: ["URY"], name: { ru: "Ринкон-де-Артигас", en: "Rincón de Artigas", zh: "林孔德阿蒂加斯" }, wiki: "Ринкон-де-Артигас" },
   "-99": { kind: "border", claim: ["ARG", "CHL"], name: { ru: "Южное Патагонское ледниковое плато", en: "Southern Patagonian Ice Field", zh: "南巴塔哥尼亚冰原" }, wiki: "Южное Патагонское ледниковое плато" },
   PFA: { kind: "disputed", control: ["CHN"], claim: ["VNM"], name: { ru: "Парасельские острова", en: "Paracel Islands", zh: "西沙群岛" }, wiki: "Парасельские острова" },
-  PGA: { kind: "disputed", claim: ["CHN", "VNM", "PHL", "MYS", "BRN"], name: { ru: "острова Спратли", en: "Spratly Islands", zh: "南沙群岛" }, wiki: "Спратли" },
+  PGA: { kind: "disputed", claim: ["CHN", "VNM", "PHL", "MYS", "BRN"], name: { ru: "Острова Спратли", en: "Spratly Islands", zh: "南沙群岛" }, wiki: "Спратли" },
   SCR: { kind: "disputed", control: ["CHN"], claim: ["PHL"], wiki: "Скарборо (риф)" },
-  KOD: { kind: "disputed", control: ["KOR"], claim: ["JPN"], name: { ru: "острова Лианкур (Токто / Такэсима)", en: "Liancourt Rocks (Dokdo / Takeshima)", zh: "独岛／竹岛" }, wiki: "Лианкур" },
-  DEN: { kind: "divided", owner: ["CAN", "DNK"], name: { ru: "остров Ханс", en: "Hans Island", zh: "汉斯岛" }, wiki: "Ханс (остров)" },
+  KOD: { kind: "disputed", control: ["KOR"], claim: ["JPN"], name: { ru: "Острова Лианкур (Токто / Такэсима)", en: "Liancourt Rocks (Dokdo / Takeshima)", zh: "独岛／竹岛" }, wiki: "Лианкур" },
+  DEN: { kind: "divided", owner: ["CAN", "DNK"], name: { ru: "Остров Ханс", en: "Hans Island", zh: "汉斯岛" }, wiki: "Ханс (остров)" },
   // Ничьи
   BRT: { kind: "nullius", neither: ["EGY", "SDN"], wiki: "Бир-Тавиль" },
   ATA: { kind: "ata", claim: ["AUS", "ARG", "GBR", "NZL", "NOR", "FRA", "CHL"], wiki: "Антарктида" },

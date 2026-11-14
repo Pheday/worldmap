@@ -52,6 +52,7 @@ const other = map.other.map(({ code, name, d }) => {
   for (const k of ["owner", "control", "claim", "neither"]) for (const c of t[k] || []) if (!codes.has(c)) throw new Error(`${code}.${k}: нет страны ${c}`);
   const n = { ...name, ...t.name };
   if (!n.ru || !n.en || !n.zh) throw new Error(`нет названия территории ${code}`);
+  n.ru = n.ru.charAt(0).toUpperCase() + n.ru.slice(1); // «остров Мэн» у Natural Earth → «Остров Мэн»
   if (!t.wiki) throw new Error(`нет статьи Рувики для территории ${code}`);
   return { code, d, dot: tinyDot(d), name: n, kind: t.kind, owner: t.owner, control: t.control, claim: t.claim, neither: t.neither, wiki: t.wiki, wikiSearch: t.wikiSearch };
 });
