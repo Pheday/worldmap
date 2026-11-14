@@ -546,6 +546,16 @@
   }
 
   const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+  const ruwikiUrl = (title) => "https://ru.ruwiki.ru/wiki/" + encodeURIComponent(title.replace(/ /g, "_"));
+
+  // Статья Рувики о юридическом статусе территории (заголовки сверены с русской Википедией).
+  // У «поделён между двумя странами» (остров Ханс) общей статьи нет — всё в статье о самом острове
+  const STATUS_WIKI = {
+    dep: "Зависимая территория", auto: "Автономная территория", crown: "Коронные земли",
+    kingdom: "Королевство Нидерландов", assoc: "Ассоциированное государство",
+    disputed: "Спорная территория", border: "Спорная территория",
+    nullius: "Terra nullius", ata: "Договор об Антарктике",
+  };
 
   // Карточка серой территории: что это, кому принадлежит и почему не участвует в тесте
   function showTerritoryCard(code, clientX, clientY) {
@@ -557,8 +567,10 @@
     $("cardName").textContent = tr(o, "name");
     document.querySelector(".card-images").hidden = true;
     const names = (codes) => escapeHtml(codes.map((c) => tr(byCode[c], "name")).join(settings.lang === "zh" ? "、" : ", "));
+    const statusArticle = STATUS_WIKI[o.kind];
+    const status = escapeHtml(capitalize(t("terr_" + o.kind)));
     const rows = [
-      [t("terrStatus"), capitalize(t("terr_" + o.kind))],
+      [t("terrStatus"), statusArticle ? `<a href="${ruwikiUrl(statusArticle)}" target="_blank" rel="noopener">${status}</a>` : status],
       o.owner && [t("terrOwner"), names(o.owner)],
       o.control && [t("terrControl"), names(o.control)],
       o.claim && [t("terrClaim"), names(o.claim)],
@@ -566,8 +578,7 @@
     ].filter(Boolean);
     $("cardFacts").innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
     const why = { disputed: "whyDisputed", border: "whyDisputed", nullius: "whyNullius", ata: "whyAntarctica" }[o.kind] || "whyNotState";
-    const url = o.wikiSearch ? "https://ru.ruwiki.ru/w/index.php?search=" + encodeURIComponent(o.wiki)
-      : "https://ru.ruwiki.ru/wiki/" + encodeURIComponent(o.wiki.replace(/ /g, "_"));
+    const url = o.wikiSearch ? "https://ru.ruwiki.ru/w/index.php?search=" + encodeURIComponent(o.wiki) : ruwikiUrl(o.wiki);
     $("cardNote").innerHTML = `${escapeHtml(t(why))}<br><a href="${url}" target="_blank" rel="noopener">${t("wikiLink")}</a>`;
     $("cardNote").hidden = false;
     card.hidden = false;
