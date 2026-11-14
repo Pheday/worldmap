@@ -248,10 +248,11 @@ button.link { border: none; background: none; padding: 0; color: var(--accent); 
   padding: 16px;
 }
 .modal.top { z-index: 40; }
-.modal[hidden], .card[hidden], .tooltip[hidden], .toast[hidden], .question[hidden] { display: none; }
+.modal[hidden], .card-close[hidden], .card[hidden], .tooltip[hidden], .toast[hidden], .question[hidden] { display: none; }
 .options { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; text-align: left; margin: 0 auto 18px; width: fit-content; }
 .options label { cursor: pointer; }
 .modal-box {
+  position: relative;
   background: var(--panel);
   border-radius: 14px;
   box-shadow: var(--shadow);

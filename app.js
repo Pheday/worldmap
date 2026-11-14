@@ -18,7 +18,7 @@
   const SETTINGS_KEY = "countries-quiz-settings";
   const settings = {
     flag: true, arms: false, capital: true, population: true, area: true, gdp: true, currency: true, language: true,
-    capitalOnMap: true, sound: true, lang: null,
+    sound: true, lang: null,
   };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}")); } catch (e) { /* без сохранения */ }
 
@@ -260,10 +260,6 @@
     applyView();
   }
 
-  function showCapitals() {
-    for (const layer of [capitalLayer, smallCapitalLayer, capitalMark]) layer.style.visibility = settings.capitalOnMap ? "" : "hidden";
-  }
-
   function toSvgPoint(clientX, clientY) {
     const p = new DOMPoint(clientX, clientY).matrixTransform(svg.getScreenCTM().inverse());
     return { x: p.x, y: p.y };
@@ -461,7 +457,7 @@
   // Столица страны на экране (если её знак показан) — её карточка старается не закрывать
   function capitalPoint(code) {
     const dot = capitalDots[code];
-    if (!dot || !settings.capitalOnMap || dot.style.display === "none") return null;
+    if (!dot || dot.style.display === "none") return null;
     return new DOMPoint(+dot.getAttribute("cx"), +dot.getAttribute("cy")).matrixTransform(dot.getScreenCTM());
   }
 
@@ -748,7 +744,10 @@
 
   $("dunnoBtn").onclick = () => { if (!game.over && !game.hinted) { play("wrong"); game.attempts = 3; giveHint(); } };
   $("enoughBtn").onclick = () => { if (!game.over) finish(); };
-  $("menuBtn").onclick = () => { hideCard(); $("startModal").hidden = false; };
+  // Окно новой игры, открытое поверх игры, можно закрыть без изменений (при первом запуске — нельзя)
+  $("menuBtn").onclick = () => { hideCard(); $("startClose").hidden = false; $("startModal").hidden = false; };
+  const closeStart = () => { if (!$("startClose").hidden) $("startModal").hidden = true; };
+  $("startClose").onclick = closeStart;
   $("startBtn").onclick = () => {
     $("startModal").hidden = true;
     startGame(document.querySelector("input[name=mode]:checked").value);
@@ -773,7 +772,6 @@
     box.onchange = () => {
       settings[box.dataset.field] = box.checked;
       saveSettings();
-      showCapitals();
       redrawCard();
     };
   }
@@ -835,9 +833,23 @@
   const openSettings = () => { $("settingsModal").hidden = false; };
   $("settingsBtn").onclick = openSettings;
   $("startSettingsBtn").onclick = openSettings;
-  $("settingsClose").onclick = () => { $("settingsModal").hidden = true; };
+  const closeSettings = () => { $("settingsModal").hidden = true; };
+  $("settingsClose").onclick = $("settingsX").onclick = closeSettings;
+
+  // Esc и клик по затемнённому фону закрывают верхнее окно
+  const closers = { settingsModal: closeSettings, startModal: closeStart };
+  for (const [id, close] of Object.entries(closers)) {
+    const modal = $(id);
+    let downOnBackdrop = false;
+    modal.addEventListener("pointerdown", (e) => { downOnBackdrop = e.target === modal; });
+    modal.addEventListener("click", (e) => { if (downOnBackdrop && e.target === modal) close(); });
+  }
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const id = Object.keys(closers).find((id) => !$(id).hidden);
+    if (id) { e.preventDefault(); closers[id](); }
+  });
 
   applyLanguage();
-  showCapitals();
   applyView();
 })();

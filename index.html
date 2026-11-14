@@ -85,6 +85,7 @@
 
   <div class="modal" id="startModal">
     <div class="modal-box">
+      <button type="button" class="card-close" id="startClose" data-t-aria="close" data-t-title="close" aria-label="Закрыть" title="Закрыть" hidden>×</button>
       <h1 data-t="appTitle">Страны мира</h1>
       <p data-t="whatToGuess">Что будем угадывать?</p>
       <div class="modes">
@@ -119,6 +120,7 @@
 
   <div class="modal top" id="settingsModal" hidden>
     <div class="modal-box">
+      <button type="button" class="card-close" id="settingsX" data-t-aria="close" data-t-title="close" aria-label="Закрыть" title="Закрыть">×</button>
       <h1 data-t="settings">Настройки</h1>
       <p data-t="cardFieldsTitle">Что показывать в карточке страны:</p>
       <div class="options" id="cardOptions">
@@ -130,10 +132,6 @@
         <label><input type="checkbox" data-field="gdp"> <span data-t="gdp">ВВП по ППС</span></label>
         <label><input type="checkbox" data-field="currency"> <span data-t="currency">Валюта</span></label>
         <label><input type="checkbox" data-field="language"> <span data-t="languages">Языки</span></label>
-      </div>
-      <p data-t="mapFieldsTitle">На карте:</p>
-      <div class="options">
-        <label><input type="checkbox" data-field="capitalOnMap"> <span data-t="capitalOnMap">Столицы</span></label>
       </div>
       <button type="button" class="primary big" id="settingsClose" data-t="done">Готово</button>
     </div>
