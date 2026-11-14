@@ -151,7 +151,7 @@ for (const f of geo.features) {
   // (у стран-кружков оставляем все острова: при приближении их видно)
   const small = !key.startsWith("x_") && (total < SMALL_AREA || FORCE_DOT.has(key));
   const kept = rings.filter((r) => r === biggest || (r.pts.length >= 3 && (small || r.area >= 0.05)));
-  // Серые территории — каждая отдельно, чтобы по клику показать, что это
+  // Особые территории — каждая отдельно, чтобы по клику показать, что это
   if (key.startsWith("x_")) { other.push({ code: key.slice(2), name: names[key.slice(2)], d: toPath(kept) }); continue; }
   const l = labels[key];
   const c = { code: key, qid: l?.qid, d: toPath(kept) };

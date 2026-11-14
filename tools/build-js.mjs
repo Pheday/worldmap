@@ -44,11 +44,11 @@ function tinyDot(d) {
   return [r1((Math.min(...xs) + Math.max(...xs)) / 2), r1((Math.min(...ys) + Math.max(...ys)) / 2)];
 }
 
-// Серые территории: контур + название + статус (см. territories.mjs)
+// Особые территории: контур + название + статус (см. territories.mjs)
 const codes = new Set(countries.map((c) => c.code));
 const other = map.other.map(({ code, name, d }) => {
   const t = TERRITORIES[code];
-  if (!t) throw new Error(`нет описания серой территории ${code} в territories.mjs`);
+  if (!t) throw new Error(`нет описания особой территории ${code} в territories.mjs`);
   for (const k of ["owner", "control", "claim", "neither"]) for (const c of t[k] || []) if (!codes.has(c)) throw new Error(`${code}.${k}: нет страны ${c}`);
   const n = { ...name, ...t.name };
   if (!n.ru || !n.en || !n.zh) throw new Error(`нет названия территории ${code}`);
@@ -56,7 +56,7 @@ const other = map.other.map(({ code, name, d }) => {
   if (!t.wiki) throw new Error(`нет статьи Рувики для территории ${code}`);
   return { code, d, dot: tinyDot(d), name: n, kind: t.kind, owner: t.owner, control: t.control, claim: t.claim, neither: t.neither, wiki: t.wiki, wikiSearch: t.wikiSearch };
 });
-// Силуэт для обводки: серые территории (настройка «Обводить территории с особым статусом») и островные государства,
+// Силуэт для обводки: особые территории (настройка «Обводить территории с особым статусом») и островные государства,
 // чьи острова разбросаны по океану (у них обводка вместо кружка на одном острове).
 // Силуэт — одна выпуклая оболочка всех островов, без перемычек между далёкими частями. app.js раздувает её
 // на постоянное число пикселей экрана, так что обводка — плавная выпуклая фигура при любом масштабе

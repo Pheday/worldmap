@@ -105,7 +105,7 @@ await shot(page, "5b-zh-card");
 await setLang("en");
 console.log("en карточка:", await page.$eval("#cardName", (e) => e.textContent), "|", await page.$eval("#cardFacts", (e) => e.innerText.replace(/\n/g, " | ")));
 await shot(page, "5c-en-card");
-// Серые территории: кружками не рисуются, карточка — со ссылкой на статью о статусе
+// Особые территории: кружками не рисуются, карточка — со ссылкой на статью о статусе
 console.log("серых кружков:", await page.$$eval(".dot[data-territory]", (e) => e.length));
 await page.keyboard.press("Escape");
 const grl = await page.evaluate(() => {
