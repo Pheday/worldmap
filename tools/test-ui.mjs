@@ -1,9 +1,13 @@
-// Прогоняет основные сценарии в Chrome и сохраняет скриншоты: node test-ui.mjs <папка для скриншотов>
+// Прогоняет основные сценарии в Chrome и сохраняет скриншоты: node test-ui.mjs [папка для скриншотов]
+// Без папки — во временную папку системы, чтобы скриншоты не копились в проекте
 import puppeteer from "puppeteer-core";
+import fs from "fs";
+import os from "os";
 import path from "path";
 import { pathToFileURL } from "url";
 
-const outDir = process.argv[2] || ".";
+const outDir = process.argv[2] || fs.mkdtempSync(path.join(os.tmpdir(), "quiz-ui-"));
+console.log("скриншоты:", outDir);
 const shot = (page, name) => page.screenshot({ path: path.join(outDir, name + ".png") });
 const browser = await puppeteer.launch({
   executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
