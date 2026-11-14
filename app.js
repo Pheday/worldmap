@@ -609,7 +609,7 @@
   // Заголовок карточки — ссылка на статью в Рувики (если она есть)
   function setCardName(name, url) {
     $("cardName").innerHTML = url
-      ? `<a href="${url}" target="_blank" rel="noopener" title="${escapeHtml(t("wikiLink"))}">${escapeHtml(name)}</a>`
+      ? `<a href="${url}" target="_blank" rel="noopener">${escapeHtml(name)}</a>`
       : escapeHtml(name);
   }
 
