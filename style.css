@@ -261,6 +261,8 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .options.single { grid-template-columns: 1fr; }
 .options label.sub { padding-left: 24px; }
 .options label.disabled { color: var(--muted); cursor: default; }
+.section-title { font-weight: 600; margin: 14px 0 10px; }
+.options + .section-title { margin-top: 30px; }
 .modal-box {
   position: relative;
   background: var(--panel);
