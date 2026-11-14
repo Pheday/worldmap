@@ -147,11 +147,27 @@ button.link { border: none; background: none; padding: 0; color: var(--accent); 
 .country.s1, .country.s2, .country.s3, .country.s4 { stroke: rgba(0, 0, 0, 0.5); stroke-width: 1; }
 .country.hint, .dot.hint { fill: var(--hint); animation: pulse 1s ease-in-out infinite alternate; }
 .country.flash, .dot.flash { fill: var(--failed); }
-/* Столицы: мелкие точки, у выбранной страны — крупнее, с белой обводкой */
 .capitals { pointer-events: none; }
-.capital { fill: rgba(31, 35, 40, 0.55); }
-.capital.selected { fill: var(--text); stroke: #fff; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+/* Столицы: светлые «шляпки» с тонкой обводкой в тон границ; выбранная — знак «кольцо с точкой» */
+.capital { fill: #fffaf0; stroke: #7d6d4c; stroke-width: 0.8; vector-effect: non-scaling-stroke; }
+.capital.selected { visibility: hidden; }
+.capital-mark { filter: drop-shadow(0 1px 1.5px rgba(40, 30, 10, 0.45)); }
+.mark-ring { fill: #fff; stroke: var(--text); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.mark-core { fill: var(--text); }
+.capital-mark.pop circle { transform-box: fill-box; transform-origin: center; animation: mark-pop .35s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes mark-pop { from { transform: scale(0.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes pulse { from { fill-opacity: 1; } to { fill-opacity: 0.45; } }
+
+/* Линейка масштаба — слева внизу */
+.scale-bar {
+  position: absolute; left: 14px; bottom: 14px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 4px 8px 6px; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.75);
+  font-size: 12px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.scale-bar i { display: block; height: 6px; border: 2px solid var(--text); border-top: none; transition: width .15s; }
 
 .zoom { position: absolute; right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
 .zoom button { width: 38px; height: 38px; padding: 0; font-size: 20px; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
@@ -269,4 +285,5 @@ button.link { border: none; background: none; padding: 0; color: var(--accent); 
   .actions button { padding: 6px 10px; font-size: 14px; }
   .card { left: 8px !important; right: 8px; bottom: 8px; top: auto !important; width: auto; max-width: none; max-height: 70vh; }
   .credits { display: none; }
+  .scale-bar { top: 10px; bottom: auto; left: 10px; }
 }

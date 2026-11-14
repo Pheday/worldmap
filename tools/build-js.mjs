@@ -31,7 +31,15 @@ const areaYear = Math.max(...wb.area.map((r) => r.year).filter((y, _, all) => al
 // Год ВВП, за который есть данные по большинству стран; у остальных год показывается в карточке
 const gdpYears = countries.map((c) => c.gdpYear).filter(Boolean);
 const gdpYear = Math.max(...gdpYears.filter((y) => gdpYears.filter((x) => x === y).length > countries.length / 2));
-const data = { width: map.width, height: map.height, sphere: map.sphere, other: map.other, areaYear, gdpYear, countries };
+// Линейка масштаба: в проекции Робинсона масштаб зависит от широты.
+// Для каждого градуса широты — y на карте и сколько км по параллели приходится на 1 единицу карты.
+const KM_PER_DEGREE = (Math.PI * 6371) / 180;
+const scaleBar = [];
+for (let lat = 89; lat >= -89; lat--) {
+  const [x0, y] = projection([0, lat]), [x1] = projection([1, lat]);
+  scaleBar.push([r1(y), Math.round((KM_PER_DEGREE * Math.cos((lat * Math.PI) / 180)) / (x1 - x0) * 1000) / 1000]);
+}
+const data = { width: map.width, height: map.height, sphere: map.sphere, other: map.other, areaYear, gdpYear, scaleBar, countries };
 fs.writeFileSync("../data/data.js", "window.QUIZ_DATA = " + JSON.stringify(data) + ";\n");
 console.log("data.js KB:", Math.round(fs.statSync("../data/data.js").size / 1024),
   "без флага:", countries.filter((c) => !c.flag).map((c) => c.code).join(" ") || "—",

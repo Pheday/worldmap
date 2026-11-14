@@ -5,8 +5,8 @@
   const SVG_NS = "http://www.w3.org/2000/svg";
   const W = DATA.width, H = DATA.height;
   const MAX_ZOOM = 30;
+  const SMALL_CAPITAL_MIN_PX = 40; // с какого размера страны-кружка на экране показывать её столицу
   const DOT_RADIUS = 4.5;
-  const CAPITAL_RADIUS = 0.9;
   const DRAG_THRESHOLD = 6;
 
   const byCode = Object.fromEntries(DATA.countries.map((c) => [c.code, c]));
@@ -127,13 +127,19 @@
 
   const shapes = {}; // code -> [path, dot?]
   const countryLayer = el("g"), dotLayer = el("g");
-  // Столицы — точки без подписей (название есть в карточке); у стран-кружков точку не ставим
-  const capitalLayer = el("g", { class: "capitals" });
+  // Столицы — точки без подписей (название есть в карточке).
+  // У стран-кружков точка лежит поверх кружка и появляется, когда сама страна на экране стала достаточно крупной.
+  const capitalLayer = el("g", { class: "capitals" }), smallCapitalLayer = el("g", { class: "capitals" });
   const capitalDots = {}; // code -> circle
-  viewport.append(countryLayer, capitalLayer, dotLayer);
+  // Столица выбранной страны — отдельный знак «кольцо с точкой», поверх всего
+  const capitalMark = el("g", { class: "capitals capital-mark" });
+  const markRing = capitalMark.appendChild(el("circle", { class: "mark-ring" }));
+  const markCore = capitalMark.appendChild(el("circle", { class: "mark-core" }));
+  viewport.append(countryLayer, capitalLayer, dotLayer, smallCapitalLayer, capitalMark);
   for (const c of DATA.countries) {
-    if (c.capitalXY && !c.dot) {
-      capitalDots[c.code] = capitalLayer.appendChild(el("circle", { cx: c.capitalXY[0], cy: c.capitalXY[1], class: "capital" }));
+    if (c.capitalXY) {
+      const layer = c.dot ? smallCapitalLayer : capitalLayer;
+      capitalDots[c.code] = layer.appendChild(el("circle", { cx: c.capitalXY[0], cy: c.capitalXY[1], class: "capital", "data-country": c.code }));
     }
   }
   for (const c of DATA.countries) {
@@ -171,9 +177,59 @@
     // Кружки мелких стран не раздуваются при приближении
     const r = DOT_RADIUS / Math.sqrt(view.k);
     for (const dot of dotLayer.children) dot.setAttribute("r", r);
-    // Точки столиц при приближении растут медленно: k^0.2 на экране
-    const cr = CAPITAL_RADIUS / Math.pow(view.k, 0.8);
-    for (const dot of capitalLayer.children) dot.setAttribute("r", dot.classList.contains("selected") ? cr * 1.8 : cr);
+    // Размеры знаков столиц задаём в пикселях экрана; при приближении они чуть растут
+    const pxPerUnit = (svg.getScreenCTM()?.a || 1) * view.k;
+    const grow = Math.pow(view.k, 0.18);
+    const cr = (1.3 * grow) / pxPerUnit;
+    for (const dot of capitalLayer.children) dot.setAttribute("r", cr);
+    for (const dot of smallCapitalLayer.children) {
+      dot.setAttribute("r", cr);
+      dot.style.display = smallSize(dot) * pxPerUnit >= SMALL_CAPITAL_MIN_PX ? "" : "none";
+    }
+    // На обзорном масштабе точки бледнее, к приближению ×4 — в полную силу
+    const fade = String(Math.min(1, 0.55 + 0.45 * Math.log(view.k) / Math.log(4)));
+    capitalLayer.style.opacity = smallCapitalLayer.style.opacity = fade;
+    capitalMark.style.display = selectedCapital && selectedCapital.style.display !== "none" ? "" : "none";
+    markRing.setAttribute("r", (3.6 * grow) / pxPerUnit);
+    markCore.setAttribute("r", (1.4 * grow) / pxPerUnit);
+    updateScaleBar();
+  }
+
+  /* ---------- Линейка масштаба ---------- */
+
+  const SCALE_MAX_PX = 110;
+
+  // Км на единицу карты по параллели на высоте y (таблица по градусам широты, между ними — линейно)
+  function kmPerUnit(y) {
+    const table = DATA.scaleBar;
+    let i = table.findIndex(([ty]) => ty >= y);
+    if (i <= 0) return table[Math.max(i, 0)][1];
+    const [y0, k0] = table[i - 1], [y1, k1] = table[i];
+    return k0 + (k1 - k0) * (y - y0) / (y1 - y0);
+  }
+
+  // Масштаб берём по широте центра видимой части карты
+  function updateScaleBar() {
+    const ctm = svg.getScreenCTM();
+    if (!ctm || !ctm.a) return;
+    const kmPerPx = kmPerUnit((H / 2 - view.y) / view.k) / (ctm.a * view.k);
+    const maxKm = kmPerPx * SCALE_MAX_PX;
+    const pow = Math.pow(10, Math.floor(Math.log10(maxKm)));
+    const km = [5, 2, 1].map((m) => m * pow).find((v) => v <= maxKm);
+    $("scaleLine").style.width = `${Math.round(km / kmPerPx)}px`;
+    $("scaleLabel").textContent = `${km.toLocaleString(LOCALE[settings.lang])} ${t("km")}`;
+  }
+
+  window.addEventListener("resize", () => applyView());
+
+  // Размер контура страны-кружка в единицах карты (по большей стороне), считается один раз
+  const smallSizes = new Map();
+  function smallSize(dot) {
+    if (!smallSizes.has(dot)) {
+      const box = shapes[dot.dataset.country][0].getBBox();
+      smallSizes.set(dot, Math.max(box.width, box.height));
+    }
+    return smallSizes.get(dot);
   }
 
   let selectedCapital = null;
@@ -181,11 +237,21 @@
     selectedCapital?.classList.remove("selected");
     selectedCapital = capitalDots[code] || null;
     selectedCapital?.classList.add("selected");
+    if (selectedCapital) {
+      for (const c of [markRing, markCore]) {
+        c.setAttribute("cx", selectedCapital.getAttribute("cx"));
+        c.setAttribute("cy", selectedCapital.getAttribute("cy"));
+      }
+      // Перезапуск анимации появления
+      capitalMark.classList.remove("pop");
+      void capitalMark.getBBox();
+      capitalMark.classList.add("pop");
+    }
     applyView();
   }
 
   function showCapitals() {
-    capitalLayer.style.display = settings.capitalOnMap ? "" : "none";
+    for (const layer of [capitalLayer, smallCapitalLayer, capitalMark]) layer.style.visibility = settings.capitalOnMap ? "" : "hidden";
   }
 
   function toSvgPoint(clientX, clientY) {
@@ -570,6 +636,7 @@
     for (const node of document.querySelectorAll("[data-t-title]")) node.title = t(node.dataset.tTitle);
     for (const node of document.querySelectorAll("[data-t-aria]")) node.setAttribute("aria-label", t(node.dataset.tAria));
     $("langSelect").value = settings.lang;
+    updateScaleBar();
     renderSoundButton();
     if (game.over) setProgress(Object.keys(game.results).length);
     else showQuestion();
