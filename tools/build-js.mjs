@@ -2,6 +2,7 @@
 // Данные лежат в JS, а не в JSON, чтобы index.html открывался прямо с диска (file://).
 import fs from "fs";
 import { makeProjection } from "./projection.mjs";
+import { TERRITORIES } from "./territories.mjs";
 
 const { projection } = makeProjection();
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -27,6 +28,18 @@ const countries = map.countries.map(({ code, d, dot }) => {
   };
 });
 
+// Серые территории: контур + название + статус (см. territories.mjs)
+const codes = new Set(countries.map((c) => c.code));
+const other = map.other.map(({ code, name, d }) => {
+  const t = TERRITORIES[code];
+  if (!t) throw new Error(`нет описания серой территории ${code} в territories.mjs`);
+  for (const k of ["owner", "control", "claim", "neither"]) for (const c of t[k] || []) if (!codes.has(c)) throw new Error(`${code}.${k}: нет страны ${c}`);
+  const n = { ...name, ...t.name };
+  if (!n.ru || !n.en || !n.zh) throw new Error(`нет названия территории ${code}`);
+  return { code, d, name: n, kind: t.kind, owner: t.owner, control: t.control, claim: t.claim, neither: t.neither };
+});
+for (const code of Object.keys(TERRITORIES)) if (!other.some((o) => o.code === code)) console.log("в territories.mjs лишняя запись:", code);
+
 const areaYear = Math.max(...wb.area.map((r) => r.year).filter((y, _, all) => all.filter((x) => x === y).length > 250));
 // Год ВВП, за который есть данные по большинству стран; у остальных год показывается в карточке
 const gdpYears = countries.map((c) => c.gdpYear).filter(Boolean);
@@ -39,7 +52,7 @@ for (let lat = 89; lat >= -89; lat--) {
   const [x0, y] = projection([0, lat]), [x1] = projection([1, lat]);
   scaleBar.push([r1(y), Math.round((KM_PER_DEGREE * Math.cos((lat * Math.PI) / 180)) / (x1 - x0) * 1000) / 1000]);
 }
-const data = { width: map.width, height: map.height, sphere: map.sphere, other: map.other, areaYear, gdpYear, scaleBar, countries };
+const data = { width: map.width, height: map.height, sphere: map.sphere, other, areaYear, gdpYear, scaleBar, countries };
 fs.writeFileSync("../data/data.js", "window.QUIZ_DATA = " + JSON.stringify(data) + ";\n");
 console.log("data.js KB:", Math.round(fs.statSync("../data/data.js").size / 1024),
   "без флага:", countries.filter((c) => !c.flag).map((c) => c.code).join(" ") || "—",

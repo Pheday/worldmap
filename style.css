@@ -9,6 +9,7 @@
   --land-hover: #e4d6b0;
   --border: #9b8f73;
   --other: #dedad2;
+  --other-hover: #ccc7bc;
   --first: #4caf50;
   --second: #f2c230;
   --third: #f08a24;
@@ -139,7 +140,8 @@ button.link { border: none; background: none; padding: 0; color: var(--accent); 
 #map { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; }
 #map.dragging { cursor: grabbing; }
 .sphere { fill: var(--ocean); }
-.other { fill: var(--other); stroke: var(--border); stroke-width: 0.4; vector-effect: non-scaling-stroke; pointer-events: none; }
+.other { fill: var(--other); stroke: var(--border); stroke-width: 0.4; vector-effect: non-scaling-stroke; cursor: pointer; }
+.other:hover, .other.hover { fill: var(--other-hover); }
 .country { fill: var(--land); stroke: var(--border); stroke-width: 0.5; vector-effect: non-scaling-stroke; cursor: pointer; }
 .country:hover, .country.hover { fill: var(--land-hover); }
 .dot { fill: var(--land); stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; cursor: pointer; fill-opacity: var(--dot-fill, 0.9); }
@@ -235,6 +237,8 @@ button.link { border: none; background: none; padding: 0; color: var(--accent); 
 .card-facts dd { margin: 0; }
 .card-facts small { color: var(--muted); }
 .card-facts .nowrap { white-space: nowrap; }
+.card-note { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.card-note[hidden] { display: none; }
 
 /* Модальные окна */
 .modal {

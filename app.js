@@ -121,7 +121,14 @@
   const viewport = el("g");
   svg.appendChild(viewport);
   viewport.appendChild(el("path", { d: DATA.sphere, class: "sphere" }));
-  viewport.appendChild(el("path", { d: DATA.other, class: "other" }));
+  // Серые территории (не государства, спорные, ничейные) — кликабельны, по клику карточка с пояснением
+  const otherLayer = viewport.appendChild(el("g"));
+  const territories = {}; // code -> { ...данные, el }
+  for (const o of DATA.other) {
+    const path = otherLayer.appendChild(el("path", { d: o.d, class: "other" }));
+    path.dataset.territory = o.code;
+    territories[o.code] = { ...o, el: path };
+  }
 
   const shapes = {}; // code -> [path, dot?]
   const countryLayer = el("g"), dotLayer = el("g");
@@ -294,7 +301,7 @@
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     svg.setPointerCapture(e.pointerId);
     if (pointers.size === 1) {
-      press = { code: e.target.dataset.code || null, x: e.clientX, y: e.clientY, moved: false };
+      press = { code: e.target.dataset.code || null, territory: e.target.dataset.territory || null, x: e.clientX, y: e.clientY, moved: false };
     } else if (pointers.size === 2) {
       press = null;
       const [a, b] = [...pointers.values()];
@@ -334,6 +341,7 @@
     svg.classList.remove("dragging");
     if (e.type === "pointerup" && press && !press.moved) {
       if (press.code) onCountryClick(press.code, e.clientX, e.clientY);
+      else if (press.territory) showTerritoryCard(press.territory, e.clientX, e.clientY);
       else hideCard();
     }
     if (pointers.size === 0) press = null;
@@ -345,7 +353,7 @@
   /* ---------- Подсказка с названием (только для отгаданных) ---------- */
 
   const tooltip = $("tooltip");
-  let hovered = null;
+  let hovered = null, hoveredTerritory = null;
 
   function hover(e) {
     const code = e.target.dataset.code || null;
@@ -354,9 +362,15 @@
       if (code) setClass(code, "hover", true);
       hovered = code;
     }
-    if (code && (game.over || game.results[code])) {
+    const terr = territories[e.target.dataset.territory] || null;
+    if (terr !== hoveredTerritory) {
+      hoveredTerritory?.el.classList.remove("hover");
+      terr?.el.classList.add("hover");
+      hoveredTerritory = terr;
+    }
+    if ((code && (game.over || game.results[code])) || terr) {
       const r = $("mapWrap").getBoundingClientRect();
-      tooltip.textContent = tr(byCode[code], "name");
+      tooltip.textContent = terr ? tr(terr, "name") : tr(byCode[code], "name");
       tooltip.style.left = e.clientX - r.left + "px";
       tooltip.style.top = e.clientY - r.top + "px";
       tooltip.hidden = false;
@@ -369,6 +383,8 @@
     tooltip.hidden = true;
     if (hovered) setClass(hovered, "hover", false);
     hovered = null;
+    hoveredTerritory?.el.classList.remove("hover");
+    hoveredTerritory = null;
   }
 
   /* ---------- Карточка страны ---------- */
@@ -387,6 +403,7 @@
   // verdict — функция, возвращающая текст: так карточку можно перерисовать на другом языке
   function showCard(code, verdict, verdictClass, clientX, clientY) {
     cardState = { code, verdict, verdictClass, clientX, clientY };
+    $("cardNote").hidden = true;
     const c = byCode[code];
     $("cardVerdict").textContent = verdict ? verdict() : "";
     $("cardVerdict").className = "card-verdict " + (verdictClass || "");
@@ -413,7 +430,39 @@
     $("cardFacts").innerHTML = facts.map(([, k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
 
     card.hidden = false;
-    placeCard(code, clientX, clientY);
+    placeCard(shapes[code], capitalPoint(code), clientX, clientY);
+  }
+
+  // Карточка серой территории: что это, кому принадлежит и почему не участвует в тесте
+  function showTerritoryCard(code, clientX, clientY) {
+    cardState = { territory: code, clientX, clientY };
+    const o = territories[code];
+    selectCapital(null);
+    $("cardVerdict").textContent = "";
+    $("cardVerdict").className = "card-verdict";
+    $("cardName").textContent = tr(o, "name");
+    document.querySelector(".card-images").hidden = true;
+    const names = (codes) => escapeHtml(codes.map((c) => tr(byCode[c], "name")).join(settings.lang === "zh" ? "、" : ", "));
+    const rows = [
+      [t("terrStatus"), t("terr_" + o.kind)],
+      o.owner && [t("terrOwner"), names(o.owner)],
+      o.control && [t("terrControl"), names(o.control)],
+      o.claim && [t("terrClaim"), names(o.claim)],
+      o.neither && [t("terrNeither"), names(o.neither)],
+    ].filter(Boolean);
+    $("cardFacts").innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+    const why = { disputed: "whyDisputed", border: "whyDisputed", nullius: "whyNullius", ata: "whyAntarctica" }[o.kind] || "whyNotState";
+    $("cardNote").textContent = t(why);
+    $("cardNote").hidden = false;
+    card.hidden = false;
+    placeCard([o.el], null, clientX, clientY);
+  }
+
+  // Столица страны на экране (если её знак показан) — её карточка старается не закрывать
+  function capitalPoint(code) {
+    const dot = capitalDots[code];
+    if (!dot || !settings.capitalOnMap || dot.style.display === "none") return null;
+    return new DOMPoint(+dot.getAttribute("cx"), +dot.getAttribute("cy")).matrixTransform(dot.getScreenCTM());
   }
 
   function setImage(id, src, emptyText) {
@@ -445,7 +494,7 @@
   const maskCanvas = document.createElement("canvas");
   const maskCtx = maskCanvas.getContext("2d", { willReadFrequently: true });
 
-  function countryMask(code, cols, rows) {
+  function shapeMask(elements, cols, rows) {
     maskCanvas.width = cols;
     maskCanvas.height = rows;
     const ctx = maskCtx;
@@ -457,7 +506,7 @@
     ctx.rect(r.left / CELL, r.top / CELL, r.width / CELL, r.height / CELL);
     ctx.clip();
     ctx.fillStyle = "#000";
-    for (const s of shapes[code]) {
+    for (const s of elements) {
       const m = s.getScreenCTM();
       if (!m) continue;
       ctx.setTransform(m.a / CELL, m.b / CELL, m.c / CELL, m.d / CELL, m.e / CELL, m.f / CELL);
@@ -486,7 +535,8 @@
     };
   }
 
-  function placeCard(code, x, y) {
+  // elements — контур страны или территории, cap — точка столицы на экране (или null), x, y — место клика
+  function placeCard(elements, cap, x, y) {
     if (window.matchMedia("(max-width: 640px)").matches) return; // на телефоне — снизу, через CSS
     const margin = 12;
     const w = card.offsetWidth, h = card.offsetHeight;
@@ -498,26 +548,25 @@
     if (maxT < minT) { minT = margin; maxT = Math.max(margin, innerHeight - h - margin); }
 
     const cols = Math.ceil(innerWidth / CELL), rows = Math.ceil(innerHeight / CELL);
-    let covered;
-    try { covered = countryMask(code, cols, rows); } catch (e) { covered = () => 0; }
-
-    // Столица на экране (если её знак показан) — её стараемся не закрывать
-    let cap = null;
-    const capDot = capitalDots[code];
-    if (capDot && settings.capitalOnMap && capDot.style.display !== "none") {
-      const p = new DOMPoint(+capDot.getAttribute("cx"), +capDot.getAttribute("cy")).matrixTransform(capDot.getScreenCTM());
-      if (p.x > r.left && p.x < r.right && p.y > r.top && p.y < r.bottom) cap = { x: p.x, y: p.y };
+    const none = () => 0;
+    let covered = none, coveredTarget = none;
+    try { covered = shapeMask(elements, cols, rows); } catch (e) { /* без учёта страны */ }
+    // Страну, которую сейчас надо найти, тоже по возможности не закрываем (но с меньшим весом)
+    const target = game.over ? null : current();
+    if (target && shapes[target] !== elements) {
+      try { coveredTarget = shapeMask(shapes[target], cols, rows); } catch (e) { /* без учёта */ }
     }
+    if (cap && !(cap.x > r.left && cap.x < r.right && cap.y > r.top && cap.y < r.bottom)) cap = null;
     // Плашка с вопросом внизу — её тоже лучше не закрывать
     const q = $("question");
     const qr = q.hidden ? null : q.getBoundingClientRect();
 
-    const CAP_PAD = 14, area = w * h;
+    const CAP_PAD = 14, TARGET_WEIGHT = 0.6, area = w * h;
     let best = null;
     const tryAt = (left, top) => {
       const cx0 = Math.floor(left / CELL), cy0 = Math.floor(top / CELL);
       const cx1 = Math.ceil((left + w) / CELL), cy1 = Math.ceil((top + h) / CELL);
-      let cost = covered(cx0, cy0, cx1, cy1) * CELL * CELL;
+      let cost = (covered(cx0, cy0, cx1, cy1) + TARGET_WEIGHT * coveredTarget(cx0, cy0, cx1, cy1)) * CELL * CELL;
       if (cap && cap.x > left - CAP_PAD && cap.x < left + w + CAP_PAD && cap.y > top - CAP_PAD && cap.y < top + h + CAP_PAD) cost += area;
       if (qr) {
         const ox = Math.min(left + w, qr.right) - Math.max(left, qr.left);
@@ -549,7 +598,8 @@
   function hideCard() { card.hidden = true; cardState = null; selectCapital(null); }
 
   function redrawCard() {
-    if (cardState) showCard(cardState.code, cardState.verdict, cardState.verdictClass, cardState.clientX, cardState.clientY);
+    if (cardState?.territory) showTerritoryCard(cardState.territory, cardState.clientX, cardState.clientY);
+    else if (cardState) showCard(cardState.code, cardState.verdict, cardState.verdictClass, cardState.clientX, cardState.clientY);
   }
   $("cardClose").onclick = hideCard;
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideCard(); });
@@ -613,10 +663,10 @@
       setClass(code, "hint", false);
       setClass(code, "s" + result, true);
       const verdict = result === 4 ? "remember" : "right";
-      showCard(code, () => t(verdict) + " " + t("thisIs"), "right", x, y);
       toast(t(verdict));
       play("right");
-      next();
+      next(); // сначала следующий вопрос — чтобы карточка не закрывала уже новую страну
+      if (!game.over) showCard(code, () => t(verdict) + " " + t("thisIs"), "right", x, y);
       return;
     }
 
