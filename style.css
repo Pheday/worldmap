@@ -141,11 +141,11 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .sphere { fill: var(--ocean); }
 .other { fill: var(--other); stroke: var(--border); stroke-width: 0.4; vector-effect: non-scaling-stroke; cursor: pointer; }
 .grey-rings, .grey-labels { pointer-events: none; }
-.grey-labels text { font-size: 12px; fill: #9c1550; stroke: rgba(255, 255, 255, 0.85); stroke-width: 3px; paint-order: stroke; stroke-linejoin: round; }
+.grey-labels text { pointer-events: auto; cursor: pointer; font-size: 12px; fill: #9c1550; stroke: rgba(255, 255, 255, 0.85); stroke-width: 3px; paint-order: stroke; stroke-linejoin: round; }
 .grey-rings rect { fill: #c2185b; fill-opacity: 0.55; }
 .grey-rings .ring-outer, .grey-rings .ring-inner { stroke-linejoin: round; stroke-linecap: round; }
 .grey-rings .ring-outer { fill: white; stroke: white; stroke-width: var(--ring-outer); }
-.grey-hits .ring-hit { fill: transparent; stroke: transparent; stroke-width: var(--ring-inner); stroke-linejoin: round; stroke-linecap: round; pointer-events: all; cursor: pointer; }
+.grey-hits .ring-hit { fill: transparent; stroke: transparent; stroke-width: var(--ring-outer); stroke-linejoin: round; stroke-linecap: round; pointer-events: all; cursor: pointer; }
 .grey-rings .ring-inner { fill: black; stroke: black; stroke-width: var(--ring-inner); }
 /* Подсветку под указателем ставит app.js классом .hover, а не :hover: внутри обводки мелкой особой
    территории указатель формально над соседней страной, но подсвечиваться должна территория */

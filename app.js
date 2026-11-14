@@ -187,10 +187,6 @@
   // пересекающей линию перемены дат: она нарисована у обоих краёв карты
   function silhouette(outline) {
     const parts = outline.split("Z").filter(Boolean).map((ring) => {
-      if (ring.includes("A")) { // круг вокруг крошечного острова: M(cx−r),cy A r,r … — две дуги
-        const [x0, cy, r] = ring.slice(1).split(/[A, ]/).map(Number);
-        return { x0, y0: cy - r, x1: x0 + 2 * r, y1: cy + r, area: Math.PI * r * r };
-      }
       const pts = ring.slice(1).split("L").map((p) => p.split(",").map(Number));
       const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
       let area = 0;
@@ -222,8 +218,10 @@
     ringLayer.appendChild(el("rect", { ...box, mask: `url(#${id})` }));
     const hit = hitLayer.appendChild(el("path", { class: "ring-hit", d }));
     hit.dataset.territory = o.code;
-    // Подпись — у самого крупного куска: так видно, где какая территория
-    ringLabels.push({ o, box: sh.main, size: sh.size, el: ringLabelLayer.appendChild(el("text")) });
+    // Подпись — у самого крупного куска: так видно, где какая территория. Клик по подписи — как по территории
+    const label = ringLabelLayer.appendChild(el("text"));
+    label.dataset.territory = o.code;
+    ringLabels.push({ o, box: sh.main, size: sh.size, el: label });
   });
 
   // Крупные территории подписываем первыми; подпись, наезжающая на уже поставленную, скрывается
@@ -535,7 +533,12 @@
       for (const x of terr?.els || []) x.classList.add("hover");
       hoveredTerritory = terr;
     }
-    if ((code && (game.over || game.results[code])) || terr) {
+    // Над подписью территории название и так видно. Панель вопроса пропускает указатель к карте под ней,
+    // но подсказка поверх вопроса мешает его читать
+    const q = $("question"), qr = q.hidden ? null : q.getBoundingClientRect();
+    const overQuestion = qr && e.clientX >= qr.left && e.clientX <= qr.right && e.clientY >= qr.top && e.clientY <= qr.bottom;
+    const overLabel = e.target.parentNode === ringLabelLayer;
+    if (!overQuestion && !overLabel && ((code && (game.over || game.results[code])) || terr)) {
       const r = $("mapWrap").getBoundingClientRect();
       tooltip.textContent = terr ? tr(terr, "name") : tr(byCode[code], "name");
       tooltip.style.left = e.clientX - r.left + "px";

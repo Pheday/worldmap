@@ -83,17 +83,21 @@ const cx = projection.translate()[0];
 // На сколько сдвигается x при повороте на 360° долготы на высоте y: в проекции Робинсона x линеен по долготе
 const turn = (y) => 2 * (projection([180, projection.invert([cx, y])[1]])[0] - cx);
 // Мелкие острова после округления координат — отрезок или треугольник из 2–3 точек, и при сильном
-// приближении обводка вокруг них выходит капсулой или угловатой. Для них силуэт — описанный круг,
-// настоящий: в пути SVG это две дуги (A), а не многоугольник
-const SMALL = 2; // единиц карты
+// приближении обводка вокруг них выходит капсулой или угловатой. Для них силуэт — описанный круг.
+// Круг — правильный многоугольник, а не две дуги (A): Chrome обводку дуги, которая намного толще самого
+// круга, заливает с дырой посередине — видна только полоска шириной 2r, и у крошечных островов
+// (Парасельские, Спратли) обводки почти не видно. У многоугольника круглые стыки заливают всё
+const SMALL = 2, CIRCLE_SIDES = 24; // единиц карты; сторон у круга
 function outline(d) {
   const pts = rings(d).flat();
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
   const [x0, y0, x1, y1] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
   if (Math.max(x1 - x0, y1 - y0) < SMALL) {
-    const r = f3(Math.max(0.05, Math.hypot(x1 - x0, y1 - y0) / 2)), cy = f3((y0 + y1) / 2), a = `A${r},${r} 0 1 0 `;
-    const l = f3((x0 + x1) / 2 - r), rt = f3((x0 + x1) / 2 + r);
-    return `M${l},${cy}${a}${rt},${cy}${a}${l},${cy}Z`;
+    const r = Math.max(0.05, Math.hypot(x1 - x0, y1 - y0) / 2), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    return "M" + Array.from({ length: CIRCLE_SIDES }, (_, i) => {
+      const a = (2 * Math.PI * i) / CIRCLE_SIDES;
+      return f3(cx + r * Math.cos(a)) + "," + f3(cy + r * Math.sin(a));
+    }).join("L") + "Z";
   }
   const wrap = x1 - x0 > map.width / 2;
   const h = hull(wrap ? pts.map(([x, y]) => [x < cx ? f3(x + turn(y)) : x, y]) : pts);
