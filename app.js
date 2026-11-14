@@ -413,7 +413,7 @@
     $("cardFacts").innerHTML = facts.map(([, k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
 
     card.hidden = false;
-    placeCard(clientX, clientY);
+    placeCard(code, clientX, clientY);
   }
 
   function setImage(id, src, emptyText) {
@@ -437,16 +437,113 @@
     }
   }
 
-  function placeCard(x, y) {
+  // Карточку ставим так, чтобы она по возможности не закрывала саму страну (карту не двигаем).
+  // Видимую часть страны рисуем в маленький canvas (1 пиксель = CELL пикселей экрана),
+  // по нему строим таблицу накопленных сумм и перебираем положения карточки:
+  // цена = закрытая площадь страны + большой штраф за закрытую столицу + немного за удалённость от клика.
+  const CELL = 8;
+  const maskCanvas = document.createElement("canvas");
+  const maskCtx = maskCanvas.getContext("2d", { willReadFrequently: true });
+
+  function countryMask(code, cols, rows) {
+    maskCanvas.width = cols;
+    maskCanvas.height = rows;
+    const ctx = maskCtx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, cols, rows);
+    // Только то, что видно в окне карты
+    const r = svg.getBoundingClientRect();
+    ctx.beginPath();
+    ctx.rect(r.left / CELL, r.top / CELL, r.width / CELL, r.height / CELL);
+    ctx.clip();
+    ctx.fillStyle = "#000";
+    for (const s of shapes[code]) {
+      const m = s.getScreenCTM();
+      if (!m) continue;
+      ctx.setTransform(m.a / CELL, m.b / CELL, m.c / CELL, m.d / CELL, m.e / CELL, m.f / CELL);
+      if (s.tagName === "path") ctx.fill(new Path2D(s.getAttribute("d")));
+      else {
+        ctx.beginPath();
+        ctx.arc(+s.getAttribute("cx"), +s.getAttribute("cy"), +s.getAttribute("r"), 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    }
+    const data = ctx.getImageData(0, 0, cols, rows).data;
+    // sum[(y)*(cols+1)+x] — сколько закрашенных клеток в прямоугольнике [0,x)×[0,y)
+    const sum = new Float64Array((cols + 1) * (rows + 1));
+    for (let y = 0; y < rows; y++) {
+      let row = 0;
+      for (let x = 0; x < cols; x++) {
+        row += data[(y * cols + x) * 4 + 3] / 255;
+        sum[(y + 1) * (cols + 1) + x + 1] = sum[y * (cols + 1) + x + 1] + row;
+      }
+    }
+    return (x0, y0, x1, y1) => { // клетки, полуинтервалы
+      x0 = Math.max(0, Math.min(cols, x0)); x1 = Math.max(0, Math.min(cols, x1));
+      y0 = Math.max(0, Math.min(rows, y0)); y1 = Math.max(0, Math.min(rows, y1));
+      const W1 = cols + 1;
+      return sum[y1 * W1 + x1] - sum[y0 * W1 + x1] - sum[y1 * W1 + x0] + sum[y0 * W1 + x0];
+    };
+  }
+
+  function placeCard(code, x, y) {
     if (window.matchMedia("(max-width: 640px)").matches) return; // на телефоне — снизу, через CSS
-    const gap = 18, margin = 12;
+    const margin = 12;
     const w = card.offsetWidth, h = card.offsetHeight;
-    let left = x + gap, top = y - h / 3;
-    if (left + w > innerWidth - margin) left = x - gap - w;
-    left = Math.max(margin, Math.min(left, innerWidth - w - margin));
-    top = Math.max(margin, Math.min(top, innerHeight - h - margin));
-    card.style.left = left + "px";
-    card.style.top = top + "px";
+    // Держим карточку в пределах карты (не на панели сверху), если она туда помещается
+    const r = svg.getBoundingClientRect();
+    let minL = Math.max(margin, r.left + margin), maxL = Math.min(innerWidth, r.right) - w - margin;
+    let minT = Math.max(margin, r.top + margin), maxT = Math.min(innerHeight, r.bottom) - h - margin;
+    if (maxL < minL) { minL = margin; maxL = Math.max(margin, innerWidth - w - margin); }
+    if (maxT < minT) { minT = margin; maxT = Math.max(margin, innerHeight - h - margin); }
+
+    const cols = Math.ceil(innerWidth / CELL), rows = Math.ceil(innerHeight / CELL);
+    let covered;
+    try { covered = countryMask(code, cols, rows); } catch (e) { covered = () => 0; }
+
+    // Столица на экране (если её знак показан) — её стараемся не закрывать
+    let cap = null;
+    const capDot = capitalDots[code];
+    if (capDot && settings.capitalOnMap && capDot.style.display !== "none") {
+      const p = new DOMPoint(+capDot.getAttribute("cx"), +capDot.getAttribute("cy")).matrixTransform(capDot.getScreenCTM());
+      if (p.x > r.left && p.x < r.right && p.y > r.top && p.y < r.bottom) cap = { x: p.x, y: p.y };
+    }
+    // Плашка с вопросом внизу — её тоже лучше не закрывать
+    const q = $("question");
+    const qr = q.hidden ? null : q.getBoundingClientRect();
+
+    const CAP_PAD = 14, area = w * h;
+    let best = null;
+    const tryAt = (left, top) => {
+      const cx0 = Math.floor(left / CELL), cy0 = Math.floor(top / CELL);
+      const cx1 = Math.ceil((left + w) / CELL), cy1 = Math.ceil((top + h) / CELL);
+      let cost = covered(cx0, cy0, cx1, cy1) * CELL * CELL;
+      if (cap && cap.x > left - CAP_PAD && cap.x < left + w + CAP_PAD && cap.y > top - CAP_PAD && cap.y < top + h + CAP_PAD) cost += area;
+      if (qr) {
+        const ox = Math.min(left + w, qr.right) - Math.max(left, qr.left);
+        const oy = Math.min(top + h, qr.bottom) - Math.max(top, qr.top);
+        if (ox > 0 && oy > 0) cost += ox * oy * 0.5;
+      }
+      // Ближе к месту клика — лучше (расстояние от точки клика до карточки)
+      const dx = Math.max(left - x, 0, x - left - w), dy = Math.max(top - y, 0, y - top - h);
+      cost += Math.hypot(dx, dy) * 2;
+      if (!best || cost < best.cost) best = { cost, left, top };
+    };
+    // Прежнее положение (справа от клика, слева — если не влезает) — как исходный вариант
+    const gap = 18;
+    let left0 = x + gap;
+    if (left0 + w > innerWidth - margin) left0 = x - gap - w;
+    tryAt(Math.max(minL, Math.min(left0, maxL)), Math.max(minT, Math.min(y - h / 3, maxT)));
+    const step = CELL * 2;
+    for (let top = minT; top <= maxT + 0.5; top += step) {
+      for (let left = minL; left <= maxL + 0.5; left += step) tryAt(left, top);
+      tryAt(maxL, top);
+    }
+    for (let left = minL; left <= maxL + 0.5; left += step) tryAt(left, maxT);
+    tryAt(maxL, maxT);
+
+    card.style.left = best.left + "px";
+    card.style.top = best.top + "px";
   }
 
   function hideCard() { card.hidden = true; cardState = null; selectCapital(null); }
