@@ -635,7 +635,11 @@
     for (const node of document.querySelectorAll("[data-t]")) node.textContent = t(node.dataset.t);
     for (const node of document.querySelectorAll("[data-t-title]")) node.title = t(node.dataset.tTitle);
     for (const node of document.querySelectorAll("[data-t-aria]")) node.setAttribute("aria-label", t(node.dataset.tAria));
-    $("langSelect").value = settings.lang;
+    for (const li of $("langMenu").children) {
+      const on = li.dataset.lang === settings.lang;
+      li.setAttribute("aria-selected", on);
+      if (on) { $("langFlag").src = li.querySelector("img").src; $("langCode").textContent = li.dataset.code; }
+    }
     updateScaleBar();
     renderSoundButton();
     if (game.over) setProgress(Object.keys(game.results).length);
@@ -644,11 +648,40 @@
     redrawCard();
     hideTooltip();
   }
-  $("langSelect").onchange = (e) => {
-    settings.lang = e.target.value;
+  // Выпадающий список языков с флагами
+  const langMenu = $("langMenu"), langBtn = $("langBtn");
+  const setLangMenu = (open) => {
+    langMenu.hidden = !open;
+    langBtn.setAttribute("aria-expanded", open);
+    if (open) (langMenu.querySelector('[aria-selected="true"]') || langMenu.firstElementChild).focus();
+  };
+  langBtn.onclick = (e) => { e.stopPropagation(); setLangMenu(langMenu.hidden); };
+  langMenu.onclick = (e) => {
+    const li = e.target.closest("li");
+    if (!li) return;
+    setLangMenu(false);
+    langBtn.focus();
+    if (li.dataset.lang === settings.lang) return;
+    settings.lang = li.dataset.lang;
     saveSettings();
     applyLanguage();
   };
+  langMenu.onkeydown = (e) => {
+    const items = [...langMenu.children], i = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus();
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      e.stopPropagation();
+      document.activeElement.click();
+    } else if (e.key === "Escape" || e.key === "Tab") {
+      e.stopPropagation();
+      setLangMenu(false);
+      if (e.key === "Escape") langBtn.focus();
+    }
+  };
+  document.addEventListener("click", (e) => { if (!langMenu.hidden && !e.target.closest("#langPicker")) setLangMenu(false); });
   const openSettings = () => { $("settingsModal").hidden = false; };
   $("settingsBtn").onclick = openSettings;
   $("startSettingsBtn").onclick = openSettings;

@@ -29,14 +29,18 @@
       <button type="button" id="dunnoBtn" class="ghost" disabled data-t="dunno">Не знаю</button>
       <button type="button" id="enoughBtn" class="ghost" disabled data-t="enough">Мне хватит</button>
       <span class="sep" aria-hidden="true"></span>
-      <label class="lang" data-t-title="langTitle" title="Язык">
-        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>
-        <select id="langSelect" data-t-aria="langTitle" aria-label="Язык">
-          <option value="ru">RU</option>
-          <option value="en">EN</option>
-          <option value="zh">中文</option>
-        </select>
-      </label>
+      <div class="lang" id="langPicker">
+        <button type="button" id="langBtn" class="ghost" aria-haspopup="listbox" aria-expanded="false" data-t-title="langTitle" data-t-aria="langTitle" title="Язык" aria-label="Язык">
+          <img id="langFlag" class="lang-flag" src="data/flags/RUS.png" alt="">
+          <span id="langCode">RU</span>
+          <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>
+        </button>
+        <ul id="langMenu" class="lang-menu" role="listbox" data-t-aria="langTitle" aria-label="Язык" hidden>
+          <li role="option" data-lang="ru" data-code="RU" tabindex="-1"><img class="lang-flag" src="data/flags/RUS.png" alt="">Русский</li>
+          <li role="option" data-lang="en" data-code="EN" tabindex="-1"><img class="lang-flag" src="data/flags/GBR.png" alt="">English</li>
+          <li role="option" data-lang="zh" data-code="中文" tabindex="-1"><img class="lang-flag" src="data/flags/CHN.png" alt="">中文</li>
+        </ul>
+      </div>
       <button type="button" id="soundBtn" class="icon ghost" title="Звук включён" data-t-aria="sound" aria-label="Звук">
         <svg class="ico on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
         <svg class="ico off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>

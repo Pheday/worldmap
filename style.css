@@ -98,15 +98,20 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 #soundBtn.muted .off { display: block; }
 
 /* Выбор языка */
-.lang { position: relative; display: inline-flex; align-items: center; height: 36px; border-radius: 9px; color: var(--muted); border: 1px solid transparent; transition: background .15s, border-color .15s, color .15s; }
-.lang:hover { background: var(--bg); border-color: var(--line); color: var(--text); }
-.lang .ico { position: absolute; left: 8px; pointer-events: none; }
-.lang select {
-  appearance: none; -webkit-appearance: none;
-  height: 100%; padding: 0 10px 0 30px; border: none; background: transparent;
-  font: inherit; font-weight: 600; font-size: 13px; color: inherit; cursor: pointer;
+.lang { position: relative; }
+.actions #langBtn { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 8px 0 10px; font-weight: 600; font-size: 13px; color: var(--muted); }
+.actions #langBtn:hover, .actions #langBtn[aria-expanded="true"] { color: var(--text); }
+.lang-flag { width: 20px; height: 14px; object-fit: cover; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12); flex: none; }
+.lang .chev { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.lang-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 150px;
+  margin: 0; padding: 4px; list-style: none;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
 }
-.lang select:focus-visible { outline: 2px solid var(--accent); border-radius: 9px; }
+.lang-menu[hidden] { display: none; }
+.lang-menu li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 7px; font-size: 14px; cursor: pointer; outline: none; }
+.lang-menu li:hover, .lang-menu li:focus { background: var(--bg); }
+.lang-menu li[aria-selected="true"] { font-weight: 600; color: var(--accent); }
 button.link { border: none; background: none; padding: 0; color: var(--accent); text-decoration: underline; font-size: 14px; }
 
 /* Вопрос — внизу карты, над Антарктидой */
@@ -275,8 +280,8 @@ button.link { border: none; background: none; padding: 0; color: var(--accent); 
   .actions { gap: 2px; }
   .actions button.icon { width: 34px; }
   .sep { display: none; }
-  .lang .ico { display: none; }
-  .lang select { padding: 0 8px; }
+  .lang .chev { display: none; }
+  .actions #langBtn { padding: 0 8px; }
   #menuBtn span { display: none; }
   .actions button#menuBtn { width: 36px; padding: 0; justify-content: center; }
   .question { max-width: calc(100% - 24px); bottom: 10px; padding: 8px 14px; }
