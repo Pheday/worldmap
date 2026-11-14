@@ -147,11 +147,13 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .grey-rings .ring-outer { fill: white; stroke: white; stroke-width: var(--ring-outer); }
 .grey-hits .ring-hit { fill: transparent; stroke: transparent; stroke-width: var(--ring-inner); stroke-linejoin: round; stroke-linecap: round; pointer-events: all; cursor: pointer; }
 .grey-rings .ring-inner { fill: black; stroke: black; stroke-width: var(--ring-inner); }
-.other:hover, .other.hover { fill: var(--other-hover); }
+/* Подсветку под указателем ставит app.js классом .hover, а не :hover: внутри обводки мелкой особой
+   территории указатель формально над соседней страной, но подсвечиваться должна территория */
+.other.hover { fill: var(--other-hover); }
 .country { fill: var(--land); stroke: var(--border); stroke-width: 0.5; vector-effect: non-scaling-stroke; cursor: pointer; }
-.country:hover, .country.hover { fill: var(--land-hover); }
+.country.hover { fill: var(--land-hover); }
 .dot { fill: var(--land); stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; cursor: pointer; fill-opacity: var(--dot-fill, 0.9); }
-.dot:hover, .dot.hover { fill: var(--land-hover); }
+.dot.hover { fill: var(--land-hover); }
 .country.s1, .dot.s1 { fill: var(--first); }
 .country.s2, .dot.s2 { fill: var(--second); }
 .country.s3, .dot.s3 { fill: var(--third); }
@@ -168,7 +170,7 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .archi-rings .ring-outer { fill: white; stroke: white; stroke-width: var(--archi-outer); }
 .archi-rings .ring-inner { fill: black; stroke: black; stroke-width: var(--ring-inner); }
 .archi-area { fill: var(--land); stroke: var(--land); stroke-width: var(--ring-inner); stroke-linejoin: round; stroke-linecap: round; opacity: 0; pointer-events: all; cursor: pointer; }
-.archi-area:hover, .archi-area.hover { fill: var(--land-hover); stroke: var(--land-hover); opacity: 0.35; }
+.archi-area.hover { fill: var(--land-hover); stroke: var(--land-hover); opacity: 0.35; }
 /* Цвет результата, как у стран. Заливка лежит под сушей, острова не закрывает. Прозрачность разная: жёлтый,
    оранжевый и красный при той же прозрачности, что и зелёный, смешиваются с голубым океаном в серый */
 .archi-area.s1 { fill: var(--first); stroke: var(--first); opacity: 0.16; }
