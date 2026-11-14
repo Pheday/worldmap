@@ -18,7 +18,7 @@
   const SETTINGS_KEY = "countries-quiz-settings";
   const settings = {
     flag: true, arms: false, capital: true, population: true, area: true, gdp: true, currency: true, language: true,
-    sound: true, lang: null,
+    sound: true, lang: null, greyRings: false, greyLabels: true,
   };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}")); } catch (e) { /* без сохранения */ }
 
@@ -127,7 +127,7 @@
   for (const o of DATA.other) {
     const path = otherLayer.appendChild(el("path", { d: o.d, class: "other" }));
     path.dataset.territory = o.code;
-    territories[o.code] = { ...o, el: path };
+    territories[o.code] = { ...o, el: path, els: [path] };
   }
 
   const shapes = {}; // code -> [path, dot?]
@@ -141,6 +141,13 @@
   const markRing = capitalMark.appendChild(el("circle", { class: "mark-ring" }));
   const markCore = capitalMark.appendChild(el("circle", { class: "mark-core" }));
   viewport.append(countryLayer, capitalLayer, dotLayer, smallCapitalLayer, capitalMark);
+  // Крошечные серые территории (остров Ханс, Гибралтар…) — кружки, как у мелких стран
+  for (const o of DATA.other) {
+    if (!o.dot) continue;
+    const dot = dotLayer.appendChild(el("circle", { cx: o.dot[0], cy: o.dot[1], r: DOT_RADIUS, class: "dot other-dot" }));
+    dot.dataset.territory = o.code;
+    territories[o.code].els.push(dot);
+  }
   for (const c of DATA.countries) {
     if (c.capitalXY) {
       const layer = c.dot ? smallCapitalLayer : capitalLayer;
@@ -159,6 +166,110 @@
       shapes[c.code].push(dot);
     }
   }
+
+  // Обводка серых территорий (включается в настройках) — чтобы было видно, какие они вообще есть.
+  // Силуэт o.outline (строит build-js.mjs) — выпуклые оболочки групп соседних островов; далёкие группы
+  // одной территории связаны «перемычками» по кратчайшему остову. Обводка идёт на RING_GAP пикселей
+  // экрана от силуэта, так что это плавная выпуклая фигура при любом масштабе.
+  // Контур рисуется маской: белое — силуэт, раздутый на RING_GAP + RING_WIDTH, чёрное — раздутый на RING_GAP;
+  // видна только полоска между ними. Маска у каждой территории своя. Чтобы обводки соседних территорий
+  // не пересекались, в маску большей добавлены (чёрным) раздутые силуэты меньших соседей: меньшая
+  // обведена целиком, линия большей прерывается у неё (Синт-Мартен и Сен-Мартен, остров Ханс у Гренландии).
+  // Внутри обводки территорию можно кликнуть: под картой лежит прозрачная фигура того же силуэта
+  // (поэтому в этом режиме серые кружки крошечных территорий не нужны и скрыты).
+  const RING_GAP = 6, RING_WIDTH = 1.5; // px
+  const RING_PAD = 40; // запас вокруг силуэта в единицах карты — больше любой обводки при масштабе ×1 даже на телефоне
+  const ringLayer = el("g", { class: "grey-rings" });
+  const hitLayer = el("g", { class: "grey-hits" });
+  const ringLabelLayer = el("g", { class: "grey-labels" }); // вне viewport: размер шрифта постоянный
+  const ringLabels = [];
+
+  const shapes2 = Object.values(territories).filter((o) => o.outline).map((o) => {
+    const parts = o.outline.split("Z").filter(Boolean).map((ring) => {
+      const pts = ring.slice(1).split("L").map((p) => p.split(",").map(Number));
+      const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+      let area = 0;
+      pts.forEach(([x, y], i) => { const [x2, y2] = pts[(i + 1) % pts.length]; area += x * y2 - x2 * y; });
+      return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys), area: Math.abs(area / 2) };
+    });
+    let d = o.outline;
+    // Перемычки между далёкими группами — кратчайший остов (алгоритм Прима)
+    const centers = parts.map((r) => [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2]);
+    const inTree = new Set([0]), dist = centers.map((c) => [Math.hypot(c[0] - centers[0][0], c[1] - centers[0][1]), 0]);
+    while (inTree.size < centers.length) {
+      let best = -1;
+      dist.forEach(([v], i) => { if (!inTree.has(i) && (best < 0 || v < dist[best][0])) best = i; });
+      const a = centers[best], b = centers[dist[best][1]];
+      d += `M${a[0]},${a[1]}L${b[0]},${b[1]}`;
+      inTree.add(best);
+      centers.forEach((c, i) => { const v = Math.hypot(c[0] - a[0], c[1] - a[1]); if (v < dist[i][0]) dist[i] = [v, best]; });
+    }
+    const main = parts.reduce((p, q) => ((q.x1 - q.x0) * (q.y1 - q.y0) > (p.x1 - p.x0) * (p.y1 - p.y0) ? q : p));
+    const box = { x0: Math.min(...parts.map((r) => r.x0)), y0: Math.min(...parts.map((r) => r.y0)), x1: Math.max(...parts.map((r) => r.x1)), y1: Math.max(...parts.map((r) => r.y1)) };
+    return { o, d, main, box, size: parts.reduce((s, r) => s + r.area, 0) };
+  });
+  // Сначала крупные: их кликабельные фигуры — снизу, чтобы мелкие соседи оставались доступны
+  shapes2.sort((a, b) => b.size - a.size);
+  shapes2.forEach((sh, n) => {
+    const { o, d, box: b } = sh;
+    const box = { x: b.x0 - RING_PAD, y: b.y0 - RING_PAD, width: b.x1 - b.x0 + 2 * RING_PAD, height: b.y1 - b.y0 + 2 * RING_PAD };
+    const id = "greyRing" + n;
+    const mask = ringLayer.appendChild(el("mask", { id, maskUnits: "userSpaceOnUse", ...box }));
+    mask.appendChild(el("path", { class: "ring-outer", d }));
+    mask.appendChild(el("path", { class: "ring-inner", d }));
+    // Меньшие соседи вырезают свою зону из обводки этой территории
+    for (const other of shapes2.slice(n + 1)) {
+      const q = other.box;
+      if (q.x0 > b.x1 + RING_PAD || q.x1 < b.x0 - RING_PAD || q.y0 > b.y1 + RING_PAD || q.y1 < b.y0 - RING_PAD) continue;
+      mask.appendChild(el("path", { class: "ring-inner", d: other.d }));
+    }
+    ringLayer.appendChild(el("rect", { ...box, mask: `url(#${id})` }));
+    const hit = hitLayer.appendChild(el("path", { class: "ring-hit", d }));
+    hit.dataset.territory = o.code;
+    // Подпись — у самого крупного куска: так видно, где какая территория
+    ringLabels.push({ o, box: sh.main, size: sh.size, el: ringLabelLayer.appendChild(el("text")) });
+  });
+
+  // Крупные территории подписываем первыми; подпись, наезжающая на уже поставленную, скрывается
+  ringLabels.sort((a, b) => b.size - a.size);
+
+  function placeRingLabels() {
+    const s = svg.getScreenCTM()?.a || 1; // px экрана на единицу viewBox
+    ringLabelLayer.setAttribute("transform", `scale(${1 / s})`);
+    const sw = svg.clientWidth, sh = svg.clientHeight;
+    const placed = [];
+    const off = RING_GAP + RING_WIDTH + 4, h = 13;
+    for (const l of ringLabels) {
+      l.el.textContent = tr(l.o, "name");
+      l.el.style.display = "";
+      const w = l.el.getComputedTextLength() + 6;
+      const sx = (v) => (view.x + v * view.k) * s, sy = (v) => (view.y + v * view.k) * s;
+      const box = l.box;
+      const [x0, x1, y0, y1] = [sx(box.x0), sx(box.x1), sy(box.y0), sy(box.y1)], cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      // Места по очереди: над обводкой, под ней, справа, слева. [x, y базовой линии, выравнивание, рамка]
+      const spots = [
+        [cx, y0 - off, "middle", [cx - w / 2, y0 - off - h, cx + w / 2, y0 - off + 3]],
+        [cx, y1 + off + h - 3, "middle", [cx - w / 2, y1 + off, cx + w / 2, y1 + off + h]],
+        [x1 + off, cy + 4, "start", [x1 + off - 3, cy - h / 2, x1 + off + w, cy + h / 2]],
+        [x0 - off, cy + 4, "end", [x0 - off - w, cy - h / 2, x0 - off + 3, cy + h / 2]],
+      ];
+      // Территория целиком за краем экрана — подпись не нужна
+      if (x1 < 0 || x0 > sw || y1 < 0 || y0 > sh) { l.el.style.display = "none"; continue; }
+      const free = (r) =>!placed.some((q) => r[0] < q[2] && q[0] < r[2] && r[1] < q[3] && q[1] < r[3]);
+      const spot = spots.find(([, , , r]) => free(r));
+      // За пределами экрана подпись не нужна и место не занимает
+      if (!spot || spot[3][2] < 0 || spot[3][0] > sw || spot[3][3] < 0 || spot[3][1] > sh) { l.el.style.display = "none"; continue; }
+      const [x0s, y, anchor, r] = spot;
+      const shift = Math.max(4 - r[0], Math.min(0, sw - 4 - r[2])); // не вылезать за край экрана
+      const x = x0s + shift;
+      r[0] += shift; r[2] += shift;
+      l.el.setAttribute("x", x);
+      l.el.setAttribute("y", y);
+      l.el.setAttribute("text-anchor", anchor);
+      placed.push(r);
+    }
+  }
+
 
   function el(tag, attrs = {}) {
     const node = document.createElementNS(SVG_NS, tag);
@@ -202,6 +313,16 @@
     capitalMark.style.display = selectedCapital && selectedCapital.style.display !== "none" ? "" : "none";
     markRing.setAttribute("r", (3.6 * grow) / pxPerUnit);
     markCore.setAttribute("r", (1.4 * grow) / pxPerUnit);
+    if (settings.greyRings) {
+      if (!ringLayer.parentNode) { viewport.appendChild(ringLayer); viewport.insertBefore(hitLayer, otherLayer); }
+      viewport.style.setProperty("--ring-outer", (2 * (RING_GAP + RING_WIDTH)) / pxPerUnit);
+      viewport.style.setProperty("--ring-inner", (2 * RING_GAP) / pxPerUnit);
+      if (settings.greyLabels) {
+        if (!ringLabelLayer.parentNode) svg.appendChild(ringLabelLayer);
+        placeRingLabels();
+      } else ringLabelLayer.remove();
+    } else { ringLayer.remove(); hitLayer.remove(); ringLabelLayer.remove(); }
+    svg.classList.toggle("grey-rings-on", settings.greyRings);
     updateScaleBar();
   }
 
@@ -360,8 +481,8 @@
     }
     const terr = territories[e.target.dataset.territory] || null;
     if (terr !== hoveredTerritory) {
-      hoveredTerritory?.el.classList.remove("hover");
-      terr?.el.classList.add("hover");
+      for (const x of hoveredTerritory?.els || []) x.classList.remove("hover");
+      for (const x of terr?.els || []) x.classList.add("hover");
       hoveredTerritory = terr;
     }
     if ((code && (game.over || game.results[code])) || terr) {
@@ -379,7 +500,7 @@
     tooltip.hidden = true;
     if (hovered) setClass(hovered, "hover", false);
     hovered = null;
-    hoveredTerritory?.el.classList.remove("hover");
+    for (const x of hoveredTerritory?.els || []) x.classList.remove("hover");
     hoveredTerritory = null;
   }
 
@@ -429,6 +550,8 @@
     placeCard(shapes[code], capitalPoint(code), clientX, clientY);
   }
 
+  const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+
   // Карточка серой территории: что это, кому принадлежит и почему не участвует в тесте
   function showTerritoryCard(code, clientX, clientY) {
     cardState = { territory: code, clientX, clientY };
@@ -440,7 +563,7 @@
     document.querySelector(".card-images").hidden = true;
     const names = (codes) => escapeHtml(codes.map((c) => tr(byCode[c], "name")).join(settings.lang === "zh" ? "、" : ", "));
     const rows = [
-      [t("terrStatus"), t("terr_" + o.kind)],
+      [t("terrStatus"), capitalize(t("terr_" + o.kind))],
       o.owner && [t("terrOwner"), names(o.owner)],
       o.control && [t("terrControl"), names(o.control)],
       o.claim && [t("terrClaim"), names(o.claim)],
@@ -448,10 +571,12 @@
     ].filter(Boolean);
     $("cardFacts").innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
     const why = { disputed: "whyDisputed", border: "whyDisputed", nullius: "whyNullius", ata: "whyAntarctica" }[o.kind] || "whyNotState";
-    $("cardNote").textContent = t(why);
+    const url = o.wikiSearch ? "https://ru.ruwiki.ru/w/index.php?search=" + encodeURIComponent(o.wiki)
+      : "https://ru.ruwiki.ru/wiki/" + encodeURIComponent(o.wiki.replace(/ /g, "_"));
+    $("cardNote").innerHTML = `${escapeHtml(t(why))}<br><a href="${url}" target="_blank" rel="noopener">${t("wikiLink")}</a>`;
     $("cardNote").hidden = false;
     card.hidden = false;
-    placeCard([o.el], null, clientX, clientY);
+    placeCard(o.els, null, clientX, clientY);
   }
 
   // Столица страны на экране (если её знак показан) — её карточка старается не закрывать
@@ -772,9 +897,18 @@
     box.onchange = () => {
       settings[box.dataset.field] = box.checked;
       saveSettings();
-      redrawCard();
+      if (box.dataset.field === "greyRings" || box.dataset.field === "greyLabels") { applyView(); syncSubOptions(); }
+      else redrawCard();
     };
   }
+
+  // «Подписывать» имеет смысл только при включённой обводке
+  function syncSubOptions() {
+    const sub = document.querySelector('#settingsModal input[data-field="greyLabels"]');
+    sub.disabled = !settings.greyRings;
+    sub.closest("label").classList.toggle("disabled", !settings.greyRings);
+  }
+  syncSubOptions();
 
   // Переводит статичные тексты страницы и перерисовывает всё, что уже показано
   function applyLanguage() {
@@ -789,6 +923,7 @@
       if (on) { $("langFlag").src = li.querySelector("img").src; $("langCode").textContent = li.dataset.code; }
     }
     updateScaleBar();
+    if (settings.greyRings && settings.greyLabels) placeRingLabels();
     renderSoundButton();
     if (game.over) setProgress(Object.keys(game.results).length);
     else showQuestion();

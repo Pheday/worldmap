@@ -28,6 +28,22 @@ const countries = map.countries.map(({ code, d, dot }) => {
   };
 });
 
+// Территории, по которым трудно попасть даже при максимальном приближении (×150 — меньше ~300 px²
+// или полоска вроде острова Ханс), получают кружок, как мелкие страны
+const TINY_AREA = 0.013;
+function tinyDot(d) {
+  const rings = d.split("Z").filter(Boolean).map((r) => r.slice(1).split("L").map((p) => p.split(",").map(Number)));
+  let area = 0;
+  const xs = [], ys = [];
+  for (const r of rings) {
+    let s = 0;
+    r.forEach(([x, y], i) => { const [x2, y2] = r[(i + 1) % r.length]; s += x * y2 - x2 * y; xs.push(x); ys.push(y); });
+    area += Math.abs(s / 2);
+  }
+  if (area >= TINY_AREA) return undefined;
+  return [r1((Math.min(...xs) + Math.max(...xs)) / 2), r1((Math.min(...ys) + Math.max(...ys)) / 2)];
+}
+
 // Серые территории: контур + название + статус (см. territories.mjs)
 const codes = new Set(countries.map((c) => c.code));
 const other = map.other.map(({ code, name, d }) => {
@@ -36,8 +52,48 @@ const other = map.other.map(({ code, name, d }) => {
   for (const k of ["owner", "control", "claim", "neither"]) for (const c of t[k] || []) if (!codes.has(c)) throw new Error(`${code}.${k}: нет страны ${c}`);
   const n = { ...name, ...t.name };
   if (!n.ru || !n.en || !n.zh) throw new Error(`нет названия территории ${code}`);
-  return { code, d, name: n, kind: t.kind, owner: t.owner, control: t.control, claim: t.claim, neither: t.neither };
+  if (!t.wiki) throw new Error(`нет статьи Рувики для территории ${code}`);
+  return { code, d, dot: tinyDot(d), name: n, kind: t.kind, owner: t.owner, control: t.control, claim: t.claim, neither: t.neither, wiki: t.wiki, wikiSearch: t.wikiSearch };
 });
+// Силуэт каждой серой территории для обводки (настройка «Обвести серые территории»):
+// острова одной территории, лежащие ближе CLUSTER_GAP друг к другу, объединяются в группу,
+// группа — выпуклая оболочка. app.js раздувает её на постоянное число пикселей экрана, так что
+// обводка — плавная выпуклая фигура вокруг территории при любом масштабе (заливы и фьорды
+// внутри неё не важны), а далёкие группы одной территории связывает «перемычками».
+const CLUSTER_GAP = 4; // единиц карты
+const rings = (d) => d.split("Z").filter(Boolean).map((r) => r.slice(1).split("L").map((p) => p.split(",").map(Number)));
+function hull(points) { // выпуклая оболочка, монотонная цепочка Эндрю
+  const p = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (p.length < 3) return p;
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const half = (list) => {
+    const h = [];
+    for (const q of list) { while (h.length >= 2 && cross(h[h.length - 2], h[h.length - 1], q) <= 0) h.pop(); h.push(q); }
+    h.pop();
+    return h;
+  };
+  return [...half(p), ...half([...p].reverse())];
+}
+for (const o of other) {
+  if (o.code === "ATA") continue;
+  const parts = rings(o.d).map((pts) => {
+    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    return { pts, box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] };
+  });
+  const gap = (a, b) => Math.max(a.box[0] - b.box[2], b.box[0] - a.box[2], a.box[1] - b.box[3], b.box[1] - a.box[3]);
+  const groups = parts.map((q) => [q]);
+  for (let merged = true; merged;) {
+    merged = false;
+    for (let i = 0; i < groups.length && !merged; i++) for (let j = i + 1; j < groups.length && !merged; j++) {
+      if (groups[i].some((a) => groups[j].some((b) => gap(a, b) < CLUSTER_GAP))) {
+        groups[i].push(...groups.splice(j, 1)[0]);
+        merged = true;
+      }
+    }
+  }
+  o.outline = groups.map((g) => "M" + hull(g.flatMap((q) => q.pts)).map((p) => p.join(",")).join("L") + "Z").join("");
+}
+
 for (const code of Object.keys(TERRITORIES)) if (!other.some((o) => o.code === code)) console.log("в territories.mjs лишняя запись:", code);
 
 const areaYear = Math.max(...wb.area.map((r) => r.year).filter((y, _, all) => all.filter((x) => x === y).length > 250));

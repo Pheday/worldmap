@@ -140,6 +140,16 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 #map.dragging { cursor: grabbing; }
 .sphere { fill: var(--ocean); }
 .other { fill: var(--other); stroke: var(--border); stroke-width: 0.4; vector-effect: non-scaling-stroke; cursor: pointer; }
+.grey-rings, .grey-labels { pointer-events: none; }
+.grey-labels text { font-size: 12px; fill: #9c1550; stroke: rgba(255, 255, 255, 0.85); stroke-width: 3px; paint-order: stroke; stroke-linejoin: round; }
+.grey-rings rect { fill: #c2185b; fill-opacity: 0.55; }
+.grey-rings .ring-outer, .grey-rings .ring-inner { stroke-linejoin: round; stroke-linecap: round; }
+.grey-rings .ring-outer { fill: white; stroke: white; stroke-width: var(--ring-outer); }
+.grey-hits .ring-hit { fill: transparent; stroke: transparent; stroke-width: var(--ring-inner); stroke-linejoin: round; stroke-linecap: round; pointer-events: all; cursor: pointer; }
+.grey-rings-on .dot.other-dot { display: none; }
+.grey-rings .ring-inner { fill: black; stroke: black; stroke-width: var(--ring-inner); }
+.dot.other-dot { fill: var(--other); }
+.dot.other-dot:hover, .dot.other-dot.hover { fill: var(--other-hover); }
 .other:hover, .other.hover { fill: var(--other-hover); }
 .country { fill: var(--land); stroke: var(--border); stroke-width: 0.5; vector-effect: non-scaling-stroke; cursor: pointer; }
 .country:hover, .country.hover { fill: var(--land-hover); }
@@ -238,6 +248,7 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .card-facts .nowrap { white-space: nowrap; }
 .card-note { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
 .card-note[hidden] { display: none; }
+.card-note a { display: inline-block; margin-top: 6px; color: var(--accent); }
 
 /* Модальные окна */
 .modal {
@@ -250,6 +261,9 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .modal[hidden], .card-close[hidden], .card[hidden], .tooltip[hidden], .toast[hidden], .question[hidden] { display: none; }
 .options { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; text-align: left; margin: 0 auto 18px; width: fit-content; }
 .options label { cursor: pointer; }
+.options.single { grid-template-columns: 1fr; }
+.options label.sub { padding-left: 24px; }
+.options label.disabled { color: var(--muted); cursor: default; }
 .modal-box {
   position: relative;
   background: var(--panel);
