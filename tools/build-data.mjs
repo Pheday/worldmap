@@ -13,6 +13,7 @@ const group = (rows, key) => {
   return out;
 };
 const caps = group(wd.capital, "capName"), curs = group(wd.currency, "curName"), langs = group(wd.language, "langName");
+const ruwiki = group(wd.ruwiki || [], "title");
 const names = group(wd.base, "name"), isos = group(wd.base, "iso");
 const flags = group(wd.base, "flag"), arms = group(wd.base, "arms"), emblems = group(wd.base, "emblem");
 const first = (s) => (s ? [...s][0] : undefined);
@@ -65,6 +66,7 @@ for (const { code } of map.countries) {
     flagFile: FLAG_FILE[code] || fileName(first(flags[q])),
     armsFile: ARMS_FILE[code] || fileName(first(arms[q])) || fileName(first(emblems[q])),
     armsIsEmblem: !ARMS_FILE[code] && !arms[q] && !!emblems[q],
+    wiki: first(ruwiki[q]) || null,
   };
 }
 // Английский и китайский: Wikidata + правки из overrides.mjs

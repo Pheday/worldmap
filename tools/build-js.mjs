@@ -25,6 +25,7 @@ const countries = map.countries.map(({ code, d, dot }) => {
     flag: fs.existsSync(`../data/flags/${code}.png`) ? `data/flags/${code}.png` : null,
     arms: fs.existsSync(`../data/arms/${code}.png`) ? `data/arms/${code}.png` : null,
     armsIsEmblem: c.armsIsEmblem,
+    wiki: c.wiki, // заголовок статьи в Рувики
   };
 });
 

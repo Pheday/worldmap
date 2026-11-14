@@ -574,7 +574,7 @@
     const c = byCode[code];
     $("cardVerdict").textContent = verdict ? verdict() : "";
     $("cardVerdict").className = "card-verdict " + (verdictClass || "");
-    $("cardName").textContent = tr(c, "name");
+    setCardName(tr(c, "name"), c.wiki && ruwikiUrl(c.wiki));
     selectCapital(code);
 
     setImage("cardFlag", c.flag, t("noFlag"));
@@ -603,6 +603,13 @@
   const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
   const ruwikiUrl = (title) => "https://ru.ruwiki.ru/wiki/" + encodeURIComponent(title.replace(/ /g, "_"));
 
+  // Заголовок карточки — ссылка на статью в Рувики (если она есть)
+  function setCardName(name, url) {
+    $("cardName").innerHTML = url
+      ? `<a href="${url}" target="_blank" rel="noopener" title="${escapeHtml(t("wikiLink"))}">${escapeHtml(name)}</a>`
+      : escapeHtml(name);
+  }
+
   // Статья Рувики о юридическом статусе территории (заголовки сверены с русской Википедией).
   // У «поделён между двумя странами» (остров Ханс) общей статьи нет — всё в статье о самом острове
   const STATUS_WIKI = {
@@ -619,9 +626,7 @@
     selectCapital(null);
     $("cardVerdict").textContent = "";
     $("cardVerdict").className = "card-verdict";
-    // Заголовок — ссылка на статью о территории
-    const url = o.wikiSearch ? "https://ru.ruwiki.ru/w/index.php?search=" + encodeURIComponent(o.wiki) : ruwikiUrl(o.wiki);
-    $("cardName").innerHTML = `<a href="${url}" target="_blank" rel="noopener" title="${escapeHtml(t("wikiLink"))}">${escapeHtml(tr(o, "name"))}</a>`;
+    setCardName(tr(o, "name"), o.wikiSearch ? "https://ru.ruwiki.ru/w/index.php?search=" + encodeURIComponent(o.wiki) : ruwikiUrl(o.wiki));
     document.querySelector(".card-images").hidden = true;
     const names = (codes) => escapeHtml(codes.map((c) => tr(byCode[c], "name")).join(settings.lang === "zh" ? "、" : ", "));
     const statusArticle = STATUS_WIKI[o.kind];

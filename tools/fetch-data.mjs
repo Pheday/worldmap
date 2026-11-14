@@ -30,6 +30,9 @@ const queries = {
   population: `SELECT ?c ?pop ?date WHERE { VALUES ?c { ${values} }
     ?c p:P1082 ?st . ?st ps:P1082 ?pop . OPTIONAL { ?st pq:P585 ?date } }`,
   area: `SELECT ?c ?area WHERE { VALUES ?c { ${values} } ?c wdt:P2046 ?area }`,
+  // Статья о стране в русской Википедии — в Рувики у неё тот же заголовок
+  ruwiki: `SELECT ?c ?title WHERE { VALUES ?c { ${values} }
+    ?article schema:about ?c ; schema:isPartOf <https://ru.wikipedia.org/> ; schema:name ?title }`,
 };
 
 const wd = {};
