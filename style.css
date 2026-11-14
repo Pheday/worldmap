@@ -299,7 +299,9 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .modes label:has(input:checked) { border-color: var(--accent); background: #eef4fb; }
 .modes span { color: var(--muted); margin-left: auto; font-size: 13px; }
 .rules { margin-top: 18px; text-align: left; color: var(--muted); font-size: 14px; }
-.rules summary { cursor: pointer; text-align: center; }
+.rules summary { cursor: pointer; width: fit-content; margin: 0 auto; padding: 2px 8px; border-radius: 6px; }
+.rules summary:focus { outline: none; }
+.rules summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .end-score { font-size: 34px; font-weight: 700; margin: 8px 0; color: var(--accent); }
 .end-stats { list-style: none; padding: 0; margin: 0 0 20px; display: inline-grid; grid-template-columns: auto auto; gap: 4px 14px; text-align: left; }
 .end-stats i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }

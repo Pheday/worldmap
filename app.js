@@ -923,6 +923,8 @@
     $("startModal").hidden = true;
     startGame(document.querySelector("input[name=mode]:checked").value);
   };
+  // Клик мышью по «Правилам» не оставляет на них фокус, чтобы Enter после него запускал игру, а не сворачивал правила
+  document.querySelector("#startModal .rules summary").addEventListener("mousedown", (e) => e.preventDefault());
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" || $("startModal").hidden || !$("settingsModal").hidden) return;
     if (e.target.closest("button, summary, a")) return;
