@@ -75,6 +75,16 @@ function hull(points) { // выпуклая оболочка, монотонна
   };
   return [...half(p), ...half([...p].reverse())];
 }
+// Мелкие острова после округления координат — отрезок или треугольник из 2–3 точек, и при сильном
+// приближении обводка вокруг них выходит капсулой или угловатой. Для них силуэт — описанный круг
+const SMALL_GROUP = 1; // единиц карты
+function silhouette(points) {
+  const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
+  const [x0, y0, x1, y1] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  if (Math.max(x1 - x0, y1 - y0) >= SMALL_GROUP) return hull(points);
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, r = Math.max(0.05, Math.hypot(x1 - x0, y1 - y0) / 2);
+  return Array.from({ length: 16 }, (_, i) => [cx + r * Math.cos(i * Math.PI / 8), cy + r * Math.sin(i * Math.PI / 8)].map((v) => Math.round(v * 1000) / 1000));
+}
 for (const o of other) {
   if (o.code === "ATA") continue;
   const parts = rings(o.d).map((pts) => {
@@ -92,7 +102,7 @@ for (const o of other) {
       }
     }
   }
-  o.outline = groups.map((g) => "M" + hull(g.flatMap((q) => q.pts)).map((p) => p.join(",")).join("L") + "Z").join("");
+  o.outline = groups.map((g) => "M" + silhouette(g.flatMap((q) => q.pts)).map((p) => p.join(",")).join("L") + "Z").join("");
 }
 
 for (const code of Object.keys(TERRITORIES)) if (!other.some((o) => o.code === code)) console.log("в territories.mjs лишняя запись:", code);
