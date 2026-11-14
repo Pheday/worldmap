@@ -7,10 +7,11 @@
 import fs from "fs";
 import mapshaper from "mapshaper";
 import { geoPath } from "d3-geo";
-import { geoRobinson } from "d3-geo-projection";
+import { WIDTH, makeProjection } from "./projection.mjs";
 
-const WIDTH = 1600;
 const SMALL_AREA = 40; // px² — страны меньше этого получают кружок-маркер
+// Острова, разбросанные мелкими кусками: площадь больше порога, но попасть мышью трудно
+const FORCE_DOT = new Set(["SLB"]);
 
 // Куски, которые присоединяем к другим странам
 const MERGE = {
@@ -89,11 +90,8 @@ const out = await mapshaper.applyCommands(
 );
 const geo = JSON.parse(out["out.json"]);
 
-const projection = geoRobinson().fitWidth(WIDTH, { type: "Sphere" });
+const { projection, height } = makeProjection();
 const path = geoPath(projection);
-const [[, y0], [, y1]] = path.bounds({ type: "Sphere" });
-const height = Math.ceil(y1 - y0);
-projection.translate([projection.translate()[0], projection.translate()[1] - y0]);
 
 const round = (s) => s.replace(/\d+\.\d+/g, (n) => (+n).toFixed(1));
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -134,7 +132,7 @@ for (const f of geo.features) {
   if (key.startsWith("x_")) { other.push(toPath(kept)); continue; }
   const l = labels[key];
   const c = { code: key, qid: l?.qid, d: toPath(kept) };
-  if (total < SMALL_AREA) {
+  if (total < SMALL_AREA || FORCE_DOT.has(key)) {
     const [x, y] = l ? projection([l.lon, l.lat]) : biggest.pts[0];
     c.dot = [r1(x), r1(y)];
   }

@@ -34,9 +34,10 @@ const click = async (code) => { await page.keyboard.press("Escape"); const p = a
 const targetCode = () => page.evaluate(() => {
   const v = document.getElementById("questionValue");
   const img = v.querySelector("img");
-  return QUIZ_DATA.countries.find((c) => (img ? img.getAttribute("src") === c.flag : c.name === v.textContent || c.capital === v.textContent)).code;
+  return QUIZ_DATA.countries.find((c) => (img ? img.getAttribute("src") === c.flag : Object.values(c.name).includes(v.textContent) || Object.values(c.capital || {}).includes(v.textContent))).code;
 });
 
+await page.select("#langSelect", "ru");
 await page.click("#startBtn");
 let target = await targetCode();
 const wrong = target === "FRA" ? "DEU" : "FRA";
@@ -63,6 +64,9 @@ await page.click("#menuBtn");
 await page.click("input[value=flags]");
 await page.click("#startBtn");
 await shot(page, "3-flags");
+await click("SLB");
+console.log("Соломоновы — кружок:", !!(await page.$('.dot[data-code="SLB"]')), "| столица на карте:", await page.$eval(".capital-marker", (e) => e.style.display !== "none" && e.textContent));
+await shot(page, "4a-solomon");
 await click("VAT");
 await shot(page, "4-vatican");
 console.log("Ватикан:", await page.$eval("#cardFacts", (e) => e.innerText.replace(/\n/g, " | ")));
@@ -81,6 +85,24 @@ await page.click("#startBtn");
 await page.click("#enoughBtn");
 await shot(page, "5-end");
 console.log("итог:", await page.$eval("#endStats", (e) => e.innerText.replace(/\n/g, " ")));
+
+for (const lang of ["en", "zh"]) {
+  await page.select("#langSelect", lang);
+  await shot(page, "5-end-" + lang);
+  console.log(lang, "итог:", await page.$eval("#endTitle", (e) => e.textContent), "|", await page.$eval("#endStats", (e) => e.innerText.replace(/\n/g, " ")));
+}
+await page.click("#inspectBtn");
+await click("CHN");
+console.log("zh карточка:", await page.$eval("#cardName", (e) => e.textContent), "|", await page.$eval("#cardFacts", (e) => e.innerText.replace(/\n/g, " | ")));
+await shot(page, "5b-zh-card");
+await page.select("#langSelect", "en");
+console.log("en карточка:", await page.$eval("#cardName", (e) => e.textContent), "|", await page.$eval("#cardFacts", (e) => e.innerText.replace(/\n/g, " | ")));
+await shot(page, "5c-en-card");
+await page.select("#langSelect", "ru");
+await page.click("#menuBtn");
+await page.click("input[value=countries]");
+await page.click("#startBtn");
+await page.click("#enoughBtn");
 
 await page.setViewport({ width: 390, height: 800 });
 await page.click("#inspectBtn");

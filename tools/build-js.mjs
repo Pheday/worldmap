@@ -1,6 +1,10 @@
 // Собирает data/data.js для страницы: контуры + сведения о странах.
 // Данные лежат в JS, а не в JSON, чтобы index.html открывался прямо с диска (file://).
 import fs from "fs";
+import { makeProjection } from "./projection.mjs";
+
+const { projection } = makeProjection();
+const r1 = (v) => Math.round(v * 10) / 10;
 
 const map = JSON.parse(fs.readFileSync("cache/map.json", "utf8"));
 const info = JSON.parse(fs.readFileSync("cache/countries.json", "utf8"));
@@ -10,8 +14,13 @@ const countries = map.countries.map(({ code, d, dot }) => {
   const c = info[code];
   return {
     code, d, dot,
-    name: c.name, capital: c.capital, population: c.population, populationYear: c.populationYear,
-    area: c.area, gdp: c.gdp, gdpYear: c.gdpYear, currency: c.currency, language: c.language,
+    // Тексты на трёх языках: { ru, en, zh }
+    name: { ru: c.name, en: c.en.name, zh: c.zh.name },
+    capital: c.capital ? { ru: c.capital, en: c.en.capital, zh: c.zh.capital } : null,
+    capitalXY: c.capitalCoord ? projection(c.capitalCoord).map(r1) : null,
+    population: c.population, populationYear: c.populationYear, area: c.area, gdp: c.gdp, gdpYear: c.gdpYear,
+    currency: { ru: c.currency, en: c.en.currency, zh: c.zh.currency },
+    language: { ru: c.language, en: c.en.language, zh: c.zh.language },
     flag: fs.existsSync(`../data/flags/${code}.png`) ? `data/flags/${code}.png` : null,
     arms: fs.existsSync(`../data/arms/${code}.png`) ? `data/arms/${code}.png` : null,
     armsIsEmblem: c.armsIsEmblem,

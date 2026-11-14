@@ -96,6 +96,17 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .actions button.icon:hover { color: var(--text); }
 #soundBtn .off, #soundBtn.muted .on { display: none; }
 #soundBtn.muted .off { display: block; }
+
+/* Выбор языка */
+.lang { position: relative; display: inline-flex; align-items: center; height: 36px; border-radius: 9px; color: var(--muted); border: 1px solid transparent; transition: background .15s, border-color .15s, color .15s; }
+.lang:hover { background: var(--bg); border-color: var(--line); color: var(--text); }
+.lang .ico { position: absolute; left: 8px; pointer-events: none; }
+.lang select {
+  appearance: none; -webkit-appearance: none;
+  height: 100%; padding: 0 10px 0 30px; border: none; background: transparent;
+  font: inherit; font-weight: 600; font-size: 13px; color: inherit; cursor: pointer;
+}
+.lang select:focus-visible { outline: 2px solid var(--accent); border-radius: 9px; }
 button.link { border: none; background: none; padding: 0; color: var(--accent); text-decoration: underline; font-size: 14px; }
 
 /* Вопрос — внизу карты, над Антарктидой */
@@ -136,6 +147,13 @@ button.link { border: none; background: none; padding: 0; color: var(--accent); 
 .country.s1, .country.s2, .country.s3, .country.s4 { stroke: rgba(0, 0, 0, 0.5); stroke-width: 1; }
 .country.hint, .dot.hint { fill: var(--hint); animation: pulse 1s ease-in-out infinite alternate; }
 .country.flash, .dot.flash { fill: var(--failed); }
+/* Столица выбранной страны */
+.capital-marker { pointer-events: none; }
+.capital-marker circle { fill: #fff; stroke: var(--text); stroke-width: 1.6; }
+.capital-marker text {
+  font-size: 13px; font-weight: 600; fill: var(--text);
+  stroke: rgba(255, 255, 255, 0.9); stroke-width: 3.5px; stroke-linejoin: round; paint-order: stroke;
+}
 @keyframes pulse { from { fill-opacity: 1; } to { fill-opacity: 0.45; } }
 
 .zoom { position: absolute; right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
@@ -244,6 +262,8 @@ button.link { border: none; background: none; padding: 0; color: var(--accent); 
   .actions { gap: 2px; }
   .actions button.icon { width: 34px; }
   .sep { display: none; }
+  .lang .ico { display: none; }
+  .lang select { padding: 0 8px; }
   #menuBtn span { display: none; }
   .actions button#menuBtn { width: 36px; padding: 0; justify-content: center; }
   .question { max-width: calc(100% - 24px); bottom: 10px; padding: 8px 14px; }

@@ -53,3 +53,65 @@ export const ARMS_FILE = {
   SAH: "Coat of arms of the Sahrawi Arab Democratic Republic.svg",
   B35: "Coat of arms of Abkhazia.svg",
 };
+
+// ---------- Английский и китайский (упрощённый) ----------
+// Остальное берётся из Wikidata (fetch-i18n.mjs); здесь — краткие названия и правки.
+export const NAME_I18N = {
+  CHN: ["China", "中国"], KOR: ["South Korea", "韩国"], PRK: ["North Korea", "朝鲜"],
+  CIV: ["Côte d’Ivoire", "科特迪瓦"], CZE: ["Czechia", "捷克"], SWZ: ["Eswatini", "埃斯瓦蒂尼"],
+  ARE: ["United Arab Emirates", "阿联酋"], FSM: ["Micronesia", "密克罗尼西亚联邦"],
+  DOM: ["Dominican Republic", "多米尼加共和国"], ATA: ["Antarctica", "南极洲"],
+};
+
+// Столицы, которых нет в Wikidata в нужном виде: [английский, китайский, [долгота, широта]]
+export const CAPITAL_I18N = {
+  ISR: ["Tel Aviv", "特拉维夫", [34.7818, 32.0853]],
+  SAH: ["Laayoune", "阿尤恩", [-13.2033, 27.1536]],
+  B35: ["Sukhum", "苏呼米", [41.0192, 43.0036]],
+  ATG: ["St. John’s", "圣约翰", [-61.8447, 17.1211]],
+  NRU: ["Yaren (de facto)", "亚伦（事实上）", [166.9209, -0.5477]],
+  CHN: ["Beijing", "北京"], JPN: ["Tokyo", "东京"], USA: ["Washington, D.C.", "华盛顿"],
+  BGD: ["Dhaka", "达卡"], LUX: ["Luxembourg", "卢森堡"],
+};
+
+// Валюты и языки по русскому названию: [английский, китайский]; null — оставить из Wikidata
+export const TERM_I18N = {
+  // валюты
+  "перуанский соль": ["Peruvian sol", "秘鲁索尔"],
+  "израильский шекель": ["Israeli new shekel", "以色列新谢克尔"],
+  "новый израильский шекель": ["Israeli new shekel", "以色列新谢克尔"],
+  "лоти": ["Lesotho loti", "莱索托洛蒂"],
+  "венесуэльский боливар": ["Venezuelan bolívar", "委内瑞拉玻利瓦尔"],
+  "мексиканское песо": ["Mexican peso", null], "южнокорейская вона": ["South Korean won", "韩元"],
+  "японская иена": ["Japanese yen", "日元"], "южноафриканский рэнд": ["South African rand", null],
+  "индонезийская рупия": ["Indonesian rupiah", "印度尼西亚盾"], "аргентинское песо": ["Argentine peso", null],
+  "эфиопский быр": ["Ethiopian birr", null], "вату": ["Vanuatu vatu", null],
+  "туркменский манат": ["Turkmen manat", null], "вона КНДР": [null, "朝鲜元"],
+  "тайский бат": ["Thai baht", null], "польский злотый": ["Polish złoty", null],
+  "украинская гривна": ["Ukrainian hryvnia", null], "китайский юань": ["Renminbi (yuan)", null],
+  "венгерский форинт": ["Hungarian forint", null], "индийская рупия": [null, "印度卢比"],
+  "самоанская тала": [null, "萨摩亚塔拉"], "доллар Фиджи": [null, "斐济元"],
+  "угандийский шиллинг": [null, "乌干达先令"], "гондурасская лемпира": [null, "洪都拉斯伦皮拉"],
+  "конголезский франк": [null, "刚果法郎"], "малайзийский ринггит": [null, "马来西亚林吉特"],
+  "белорусский рубль": [null, "白俄罗斯卢布"], "кьят": ["Myanmar kyat", null],
+  "кина": ["Papua New Guinean kina", null], "нгултрум": ["Bhutanese ngultrum", null],
+  "леоне": ["Sierra Leonean leone", null], "малагасийский ариари": ["Malagasy ariary", null],
+  "эритрейская накфа": ["Eritrean nakfa", null], "свазилендский лилангени": ["Swazi lilangeni", null],
+  "ангольская кванза": ["Angolan kwanza", null], "гамбийский даласи": ["Gambian dalasi", null],
+  "нигерийская найра": ["Nigerian naira", null], "гаитянский гурд": ["Haitian gourde", null],
+  "камбоджийский риель": ["Cambodian riel", null], "гватемальский кетсаль": ["Guatemalan quetzal", null],
+  "боливиано": ["Bolivian boliviano", null], "афгани": ["Afghan afghani", null],
+  // языки
+  "гуарани и ещё 33 языка": ["Guarani and 33 more", "瓜拉尼语及另外33种语言"],
+  "коса и ещё 8 языков": ["Xhosa and 8 more", "科萨语及另外8种语言"],
+  "сонинке и ещё 10 языков": ["Soninke and 10 more", "索宁克语及另外10种语言"],
+  "северный ндебеле и ещё 13 языков": ["Northern Ndebele and 13 more", "北恩德贝莱语及另外13种语言"],
+  "китайский (путунхуа)": ["Chinese (Mandarin)", "汉语（普通话）"],
+  "китайский": ["Chinese", "华语"],
+  "абхазский": ["Abkhaz", "阿布哈兹语"], "берберский": ["Berber", "柏柏尔语"],
+  "английский (де-факто)": ["English (de facto)", "英语（事实上）"],
+  "испанский (де-факто)": ["Spanish (de facto)", "西班牙语（事实上）"],
+  "биса": [null, "比萨语"], "гуарани": [null, "瓜拉尼语"], "кирибати": [null, "基里巴斯语"],
+  "шона": [null, "绍纳语"], "хири-моту": [null, "希里莫图语"], "фиджийский хинди": [null, "斐济印地语"],
+  "баджанский": [null, "巴詹克里奥尔语"], "курдский": ["Kurdish", null],
+};

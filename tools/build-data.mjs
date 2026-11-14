@@ -1,9 +1,10 @@
 // Сводит Wikidata, Всемирный банк и ручные правки в tools/cache/countries.json.
 import fs from "fs";
-import { NAME, CAPITAL, CURRENCY, LANGUAGE, FLAG_FILE, ARMS_FILE } from "./overrides.mjs";
+import { NAME, CAPITAL, CURRENCY, LANGUAGE, FLAG_FILE, ARMS_FILE, NAME_I18N, CAPITAL_I18N, TERM_I18N } from "./overrides.mjs";
 
 const wd = JSON.parse(fs.readFileSync("cache/wikidata.json", "utf8"));
 const wb = JSON.parse(fs.readFileSync("cache/worldbank.json", "utf8"));
+const i18n = JSON.parse(fs.readFileSync("cache/i18n.json", "utf8"));
 const map = JSON.parse(fs.readFileSync("cache/map.json", "utf8"));
 
 const group = (rows, key) => {
@@ -66,6 +67,37 @@ for (const { code } of map.countries) {
     armsIsEmblem: !ARMS_FILE[code] && !arms[q] && !!emblems[q],
   };
 }
+// Английский и китайский: Wikidata + правки из overrides.mjs
+const LANGS = ["en", "zh"];
+const upperFirst = (s) => s && s[0].toUpperCase() + s.slice(1);
+const terms = {}; // русское название валюты/языка → { en, zh }
+for (const r of i18n.currency) if (r.ru) terms[lowerFirst(r.ru)] ??= { en: upperFirst(r.en), zh: r.zh };
+for (const r of i18n.language) if (r.ru) terms[cleanLang(r.ru)] ??= { en: upperFirst(r.en), zh: r.zh };
+for (const [ru, [en, zh]] of Object.entries(TERM_I18N)) terms[ru] = { en: en ?? terms[ru]?.en, zh: zh ?? terms[ru]?.zh };
+const missing = new Set();
+const term = (ru, lang) => terms[ru]?.[lang] || (missing.add(`${lang}: ${ru}`), ru);
+for (const [code, c] of Object.entries(countries)) {
+  const q = wd.qids[code];
+  const nameRow = i18n.country.find((r) => r.c === q);
+  const capRow = c.capital && (i18n.capital.find((r) => r.c === q && r.ru === c.capital) || i18n.capital.find((r) => r.ru === c.capital));
+  const capFix = CAPITAL_I18N[code];
+  if (c.capital) {
+    c.capitalCoord = capFix?.[2] || capRow?.coord || null;
+    if (!c.capitalCoord) missing.add("координаты столицы: " + code);
+  }
+  for (const [i, lang] of LANGS.entries()) {
+    const capital = c.capital ? capFix?.[i] || capRow?.[lang] : null;
+    if (c.capital && !capital) missing.add(`${lang}: столица ${code}`);
+    c[lang] = {
+      name: NAME_I18N[code]?.[i] || nameRow?.[lang] || (missing.add(`${lang}: название ${code}`), c.name),
+      capital: capital || c.capital,
+      currency: c.currency.map((x) => term(x, lang)),
+      language: c.language.map((x) => term(x, lang)),
+    };
+  }
+}
+if (missing.size) console.log("НЕТ ПЕРЕВОДА:", [...missing].join("; "));
+
 fs.writeFileSync("cache/countries.json", JSON.stringify(countries, null, 1));
 
 // Отчёт для ручной проверки

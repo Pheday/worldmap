@@ -13,57 +13,65 @@
       <span class="logo" aria-hidden="true">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>
       </span>
-      Страны мира
+      <span data-t="appTitle">Страны мира</span>
     </div>
     <div class="stats">
-      <div class="stat stat-progress" title="Отгадано">
+      <div class="stat stat-progress" data-t-title="progressTitle" title="Отгадано">
         <span id="progress">0 из 0</span>
         <span class="meter"><i id="progressBar"></i></span>
       </div>
-      <div class="stat" title="Время">
+      <div class="stat" data-t-title="timeTitle" title="Время">
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9.5 2.5h5"/></svg>
         <span id="timer">00:00</span>
       </div>
     </div>
     <div class="actions">
-      <button type="button" id="dunnoBtn" class="ghost" disabled>Не знаю</button>
-      <button type="button" id="enoughBtn" class="ghost" disabled>Мне хватит</button>
+      <button type="button" id="dunnoBtn" class="ghost" disabled data-t="dunno">Не знаю</button>
+      <button type="button" id="enoughBtn" class="ghost" disabled data-t="enough">Мне хватит</button>
       <span class="sep" aria-hidden="true"></span>
-      <button type="button" id="soundBtn" class="icon ghost" title="Звук включён" aria-label="Звук">
+      <label class="lang" data-t-title="langTitle" title="Язык">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>
+        <select id="langSelect" data-t-aria="langTitle" aria-label="Язык">
+          <option value="ru">RU</option>
+          <option value="en">EN</option>
+          <option value="zh">中文</option>
+        </select>
+      </label>
+      <button type="button" id="soundBtn" class="icon ghost" title="Звук включён" data-t-aria="sound" aria-label="Звук">
         <svg class="ico on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
         <svg class="ico off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>
       </button>
-      <button type="button" id="settingsBtn" class="icon ghost" title="Настройки" aria-label="Настройки">
+      <button type="button" id="settingsBtn" class="icon ghost" data-t-title="settings" data-t-aria="settings" title="Настройки" aria-label="Настройки">
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
       </button>
-      <button type="button" id="menuBtn" class="primary" title="Новая игра">
+      <button type="button" id="menuBtn" class="primary" data-t-title="newGame" title="Новая игра">
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-        <span>Новая игра</span>
+        <span data-t="newGame">Новая игра</span>
       </button>
     </div>
   </header>
 
   <main class="map-wrap" id="mapWrap">
-    <svg id="map" aria-label="Карта мира"></svg>
+    <svg id="map" data-t-aria="map" aria-label="Карта мира"></svg>
     <div class="question" id="question" hidden>
       <span class="question-label" id="questionLabel"></span>
       <span class="question-value" id="questionValue"></span>
     </div>
     <div class="zoom">
-      <button type="button" id="zoomIn" aria-label="Приблизить">+</button>
-      <button type="button" id="zoomOut" aria-label="Отдалить">−</button>
-      <button type="button" id="zoomReset" aria-label="Показать весь мир">⤢</button>
+      <button type="button" id="zoomIn" data-t-aria="zoomIn" aria-label="Приблизить">+</button>
+      <button type="button" id="zoomOut" data-t-aria="zoomOut" aria-label="Отдалить">−</button>
+      <button type="button" id="zoomReset" data-t-aria="zoomReset" aria-label="Показать весь мир">⤢</button>
     </div>
     <div class="tooltip" id="tooltip" hidden></div>
     <div class="toast" id="toast" hidden></div>
   </main>
 
-  <div class="card" id="card" hidden role="dialog" aria-label="Сведения о стране">
-    <button type="button" class="card-close" id="cardClose" aria-label="Закрыть">×</button>
+  <div class="card" id="card" hidden role="dialog" data-t-aria="cardAria" aria-label="Сведения о стране">
+    <button type="button" class="card-close" id="cardClose" data-t-aria="close" aria-label="Закрыть">×</button>
     <div class="card-verdict" id="cardVerdict"></div>
     <h2 class="card-name" id="cardName"></h2>
     <div class="card-images">
-      <figure><img id="cardFlag" alt=""><figcaption>Флаг</figcaption></figure>
+      <figure><img id="cardFlag" alt=""><figcaption data-t="flag">Флаг</figcaption></figure>
       <figure><img id="cardArms" alt=""><figcaption id="cardArmsCaption">Герб</figcaption></figure>
     </div>
     <dl class="card-facts" id="cardFacts"></dl>
@@ -71,22 +79,22 @@
 
   <div class="modal" id="startModal">
     <div class="modal-box">
-      <h1>Страны мира</h1>
-      <p>Что будем угадывать?</p>
+      <h1 data-t="appTitle">Страны мира</h1>
+      <p data-t="whatToGuess">Что будем угадывать?</p>
       <div class="modes">
-        <label><input type="radio" name="mode" value="countries" checked> <b>Страны</b><span>по названию</span></label>
-        <label><input type="radio" name="mode" value="capitals"> <b>Столицы</b><span>по названию столицы</span></label>
-        <label><input type="radio" name="mode" value="flags"> <b>Флаги</b><span>по флагу</span></label>
+        <label><input type="radio" name="mode" value="countries" checked> <b data-t="modeCountries">Страны</b><span data-t="modeCountriesHint">по названию</span></label>
+        <label><input type="radio" name="mode" value="capitals"> <b data-t="modeCapitals">Столицы</b><span data-t="modeCapitalsHint">по названию столицы</span></label>
+        <label><input type="radio" name="mode" value="flags"> <b data-t="modeFlags">Флаги</b><span data-t="modeFlagsHint">по флагу</span></label>
       </div>
-      <button type="button" class="primary big" id="startBtn">Поехали!</button>
-      <p><button type="button" class="link" id="startSettingsBtn">Настройки карточки</button></p>
+      <button type="button" class="primary big" id="startBtn" data-t="go">Поехали!</button>
+      <p><button type="button" class="link" id="startSettingsBtn" data-t="cardSettings">Настройки карточки</button></p>
       <details class="rules">
-        <summary>Правила</summary>
-        <p>Кликните по стране на карте. С первой попытки страна станет зелёной, со второй — жёлтой, с третьей — оранжевой.
+        <summary data-t="rules">Правила</summary>
+        <p data-t="rules1">Кликните по стране на карте. С первой попытки страна станет зелёной, со второй — жёлтой, с третьей — оранжевой.
           После трёх ошибок правильный ответ подсветится фиолетовым — кликните по нему, и страна станет красной.</p>
-        <p>Клик по любой стране показывает карточку со сведениями о ней — что именно показывать, выбирается в настройках.
+        <p data-t="rules2">Клик по любой стране показывает карточку со сведениями о ней — что именно показывать, выбирается в настройках.
           Клик по уже отгаданной стране ошибкой не считается.</p>
-        <p>Колесо мыши или кнопки «+»/«−» меняют масштаб, карту можно перетаскивать. Мелкие страны отмечены кружками.</p>
+        <p data-t="rules3">Колесо мыши или кнопки «+»/«−» меняют масштаб, карту можно перетаскивать. Мелкие страны отмечены кружками.</p>
       </details>
     </div>
   </div>
@@ -97,35 +105,40 @@
       <p class="end-score" id="endScore"></p>
       <ul class="end-stats" id="endStats"></ul>
       <div class="end-actions">
-        <button type="button" class="primary big" id="againBtn">Ещё раз</button>
-        <button type="button" id="inspectBtn">Осмотреть карту</button>
+        <button type="button" class="primary big" id="againBtn" data-t="again">Ещё раз</button>
+        <button type="button" id="inspectBtn" data-t="inspect">Осмотреть карту</button>
       </div>
     </div>
   </div>
 
   <div class="modal top" id="settingsModal" hidden>
     <div class="modal-box">
-      <h1>Настройки</h1>
-      <p>Что показывать в карточке страны:</p>
+      <h1 data-t="settings">Настройки</h1>
+      <p data-t="cardFieldsTitle">Что показывать в карточке страны:</p>
       <div class="options" id="cardOptions">
-        <label><input type="checkbox" data-field="flag"> Флаг</label>
-        <label><input type="checkbox" data-field="arms"> Герб</label>
-        <label><input type="checkbox" data-field="capital"> Столица</label>
-        <label><input type="checkbox" data-field="population"> Население</label>
-        <label><input type="checkbox" data-field="area"> Площадь</label>
-        <label><input type="checkbox" data-field="gdp"> ВВП по ППС</label>
-        <label><input type="checkbox" data-field="currency"> Валюта</label>
-        <label><input type="checkbox" data-field="language"> Языки</label>
+        <label><input type="checkbox" data-field="flag"> <span data-t="flag">Флаг</span></label>
+        <label><input type="checkbox" data-field="arms"> <span data-t="arms">Герб</span></label>
+        <label><input type="checkbox" data-field="capital"> <span data-t="capital">Столица</span></label>
+        <label><input type="checkbox" data-field="population"> <span data-t="population">Население</span></label>
+        <label><input type="checkbox" data-field="area"> <span data-t="area">Площадь</span></label>
+        <label><input type="checkbox" data-field="gdp"> <span data-t="gdp">ВВП по ППС</span></label>
+        <label><input type="checkbox" data-field="currency"> <span data-t="currency">Валюта</span></label>
+        <label><input type="checkbox" data-field="language"> <span data-t="languages">Языки</span></label>
       </div>
-      <button type="button" class="primary big" id="settingsClose">Готово</button>
+      <p data-t="mapFieldsTitle">На карте:</p>
+      <div class="options">
+        <label><input type="checkbox" data-field="capitalOnMap"> <span data-t="capitalOnMap">Столица выбранной страны</span></label>
+      </div>
+      <button type="button" class="primary big" id="settingsClose" data-t="done">Готово</button>
     </div>
   </div>
 
-  <footer class="credits">
+  <footer class="credits" data-t="credits">
     Карта: Natural Earth. Сведения: Wikidata, Всемирный банк. Флаги и гербы: Wikimedia Commons.
   </footer>
 
   <script src="data/data.js"></script>
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

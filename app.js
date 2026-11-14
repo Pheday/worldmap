@@ -11,20 +11,34 @@
   const byCode = Object.fromEntries(DATA.countries.map((c) => [c.code, c]));
   const $ = (id) => document.getElementById(id);
 
-  const MODES = {
-    countries: { label: "Найдите", has: () => true, show: (c) => c.name },
-    capitals: { label: "Чья столица", has: (c) => !!c.capital, show: (c) => c.capital },
-    flags: { label: "Чей флаг", has: (c) => !!c.flag, show: (c) => `<img src="${c.flag}" alt="Флаг">` },
-  };
-
   /* ---------- Настройки ---------- */
 
   const SETTINGS_KEY = "countries-quiz-settings";
   const settings = {
     flag: true, arms: false, capital: true, population: true, area: true, gdp: true, currency: true, language: true,
-    sound: true,
+    capitalOnMap: true, sound: true, lang: null,
   };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}")); } catch (e) { /* без сохранения */ }
+
+  /* ---------- Языки ---------- */
+
+  const STR = window.I18N;
+  // Без сохранённого выбора — по языку браузера: русский для русского и соседних, китайский, иначе английский
+  if (!STR[settings.lang]) {
+    const nav = (navigator.languages?.[0] || navigator.language || "").toLowerCase();
+    settings.lang = /^(ru|uk|be|kk|ky|uz|tg|hy|az|ka)\b/.test(nav) ? "ru" : nav.startsWith("zh") ? "zh" : "en";
+  }
+  const t = (key) => STR[settings.lang][key] ?? STR.ru[key];
+  // Текст страны на текущем языке: name, capital, currency, language хранятся как { ru, en, zh }
+  const tr = (c, field) => c[field]?.[settings.lang] ?? c[field]?.ru;
+  const LOCALE = { ru: "ru-RU", en: "en-US", zh: "zh-CN" };
+  const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+
+  const MODES = {
+    countries: { ask: "askCountries", has: () => true, show: (c) => escapeHtml(tr(c, "name")) },
+    capitals: { ask: "askCapitals", has: (c) => !!c.capital, show: (c) => escapeHtml(tr(c, "capital")) },
+    flags: { ask: "askFlags", has: (c) => !!c.flag, show: (c) => `<img src="${c.flag}" alt="${t("flag")}">` },
+  };
 
   function saveSettings() {
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { /* без сохранения */ }
@@ -112,7 +126,11 @@
 
   const shapes = {}; // code -> [path, dot?]
   const countryLayer = el("g"), dotLayer = el("g");
-  viewport.append(countryLayer, dotLayer);
+  // Столица выбранной страны: точка и подпись, их размер на экране не зависит от масштаба
+  const capMarker = el("g", { class: "capital-marker" });
+  capMarker.append(el("circle", { r: 3.5 }), el("text", { x: 7, y: 4 }));
+  capMarker.style.display = "none";
+  viewport.append(countryLayer, dotLayer, capMarker);
   for (const c of DATA.countries) {
     const path = el("path", { d: c.d, class: "country" });
     path.dataset.code = c.code;
@@ -148,6 +166,18 @@
     // Кружки мелких стран не раздуваются при приближении
     const r = DOT_RADIUS / Math.sqrt(view.k);
     for (const dot of dotLayer.children) dot.setAttribute("r", r);
+    if (capMarker.dataset.x) {
+      capMarker.setAttribute("transform", `translate(${capMarker.dataset.x} ${capMarker.dataset.y}) scale(${1 / view.k})`);
+    }
+  }
+
+  function showCapitalMarker(c) {
+    const xy = settings.capitalOnMap && c?.capitalXY;
+    capMarker.style.display = xy ? "" : "none";
+    if (!xy) { delete capMarker.dataset.x; return; }
+    [capMarker.dataset.x, capMarker.dataset.y] = xy;
+    capMarker.querySelector("text").textContent = tr(c, "capital");
+    applyView();
   }
 
   function toSvgPoint(clientX, clientY) {
@@ -249,7 +279,7 @@
     }
     if (code && (game.over || game.results[code])) {
       const r = $("mapWrap").getBoundingClientRect();
-      tooltip.textContent = byCode[code].name;
+      tooltip.textContent = tr(byCode[code], "name");
       tooltip.style.left = e.clientX - r.left + "px";
       tooltip.style.top = e.clientY - r.top + "px";
       tooltip.hidden = false;
@@ -267,37 +297,41 @@
   /* ---------- Карточка страны ---------- */
 
   const card = $("card");
-  const fmt = (n) => n.toLocaleString("ru-RU");
+  const fmt = (n) => n.toLocaleString(LOCALE[settings.lang]);
 
   // Место по ВВП среди стран, по которым есть данные
   const gdpRanked = DATA.countries.filter((c) => c.gdp).sort((a, b) => b.gdp - a.gdp);
   const gdpRank = Object.fromEntries(gdpRanked.map((c, i) => [c.code, i + 1]));
-  const gdpText = (c) => !c.gdp ? "нет данных"
-    : `<span class="nowrap" title="На душу населения, место в мире">${fmt(c.gdp)} $ (${gdpRank[c.code]}/${gdpRanked.length}) <small>(${c.gdpYear})</small></span>`;
+  const gdpText = (c) => !c.gdp ? t("noData")
+    : `<span class="nowrap" title="${t("gdpRankTitle")}">${fmt(c.gdp)} $ (${gdpRank[c.code]}/${gdpRanked.length}) <small>(${c.gdpYear})</small></span>`;
 
   let cardState = null; // что сейчас в карточке — чтобы перерисовать при смене настроек
 
+  // verdict — функция, возвращающая текст: так карточку можно перерисовать на другом языке
   function showCard(code, verdict, verdictClass, clientX, clientY) {
     cardState = { code, verdict, verdictClass, clientX, clientY };
     const c = byCode[code];
-    $("cardVerdict").textContent = verdict || "";
+    $("cardVerdict").textContent = verdict ? verdict() : "";
     $("cardVerdict").className = "card-verdict " + (verdictClass || "");
-    $("cardName").textContent = c.name;
+    $("cardName").textContent = tr(c, "name");
+    showCapitalMarker(c);
 
-    setImage("cardFlag", c.flag, "Флага нет");
-    setImage("cardArms", c.arms, "Официального герба нет");
-    $("cardArmsCaption").textContent = c.armsIsEmblem ? "Эмблема" : "Герб";
+    setImage("cardFlag", c.flag, t("noFlag"));
+    setImage("cardArms", c.arms, t("noArms"));
+    $("cardArmsCaption").textContent = t(c.armsIsEmblem ? "emblem" : "arms");
     $("cardFlag").parentElement.hidden = !settings.flag;
     $("cardArms").parentElement.hidden = !settings.arms;
     document.querySelector(".card-images").hidden = !settings.flag && !settings.arms;
 
+    const currency = tr(c, "currency"), language = tr(c, "language");
+    const sep = settings.lang === "zh" ? "、" : ", ";
     const facts = [
-      ["capital", "Столица", c.capital || "нет"],
-      ["population", "Население", c.population ? `${fmt(c.population)} <small>(${c.populationYear})</small>` : "нет постоянного населения"],
-      ["area", "Площадь", c.area ? `${fmt(c.area)} км²` : "—"],
-      ["gdp", `<span title="ВВП по ППС на душу населения, международные доллары">ВВП по ППС</span>`, gdpText(c)],
-      ["currency", c.currency.length > 1 ? "Валюты" : "Валюта", c.currency.join(", ") || "—"],
-      ["language", c.language.length > 1 ? "Языки" : "Язык", c.language.join(", ") || "—"],
+      ["capital", t("capital"), c.capital ? escapeHtml(tr(c, "capital")) : t("noCapital")],
+      ["population", t("population"), c.population ? `${fmt(c.population)} <small>(${c.populationYear})</small>` : t("noPopulation")],
+      ["area", t("area"), c.area ? `${fmt(c.area)} ${t("km2")}` : "—"],
+      ["gdp", `<span title="${t("gdpTitle")}">${t("gdp")}</span>`, gdpText(c)],
+      ["currency", t(currency.length > 1 ? "currencies" : "currency"), escapeHtml(currency.join(sep)) || "—"],
+      ["language", t(language.length > 1 ? "languages" : "language"), escapeHtml(language.join(sep)) || "—"],
     ].filter(([field]) => settings[field]);
     $("cardFacts").innerHTML = facts.map(([, k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
 
@@ -338,14 +372,17 @@
     card.style.top = top + "px";
   }
 
-  function hideCard() { card.hidden = true; cardState = null; }
+  function hideCard() { card.hidden = true; cardState = null; showCapitalMarker(null); }
+
+  function redrawCard() {
+    if (cardState) showCard(cardState.code, cardState.verdict, cardState.verdictClass, cardState.clientX, cardState.clientY);
+  }
   $("cardClose").onclick = hideCard;
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideCard(); });
 
   /* ---------- Игра ---------- */
 
   const game = { mode: "countries", queue: [], index: 0, attempts: 0, hinted: false, results: {}, over: true, started: 0, timer: 0 };
-  const WRONG = ["Мимо!", "Не тут!", "Не-а!", "Не здесь!", "Нет!"];
 
   const current = () => game.queue[game.index];
 
@@ -374,14 +411,14 @@
 
   function showQuestion() {
     const mode = MODES[game.mode];
-    $("questionLabel").textContent = mode.label;
+    $("questionLabel").textContent = t(mode.ask);
     $("questionValue").innerHTML = mode.show(byCode[current()]);
     setProgress(game.index);
   }
 
   function setProgress(done) {
     const total = game.queue.length;
-    $("progress").textContent = `${done} из ${total}`;
+    $("progress").textContent = `${done} ${t("of")} ${total}`;
     $("progressBar").style.width = total ? `${(done / total) * 100}%` : "0";
   }
 
@@ -393,7 +430,7 @@
   function onCountryClick(code, x, y) {
     if (game.over) { showCard(code, "", "", x, y); return; }
 
-    if (game.results[code]) { showCard(code, "Уже отгадано", "known", x, y); return; }
+    if (game.results[code]) { showCard(code, () => t("known"), "known", x, y); return; }
 
     const target = current();
     if (code === target) {
@@ -401,9 +438,9 @@
       game.results[code] = result;
       setClass(code, "hint", false);
       setClass(code, "s" + result, true);
-      const verdict = result === 4 ? "Запомните!" : "Верно!";
-      showCard(code, verdict + " Это", "right", x, y);
-      toast(verdict);
+      const verdict = result === 4 ? "remember" : "right";
+      showCard(code, () => t(verdict) + " " + t("thisIs"), "right", x, y);
+      toast(t(verdict));
       play("right");
       next();
       return;
@@ -412,7 +449,8 @@
     game.attempts++;
     play("wrong");
     flash(code);
-    showCard(code, WRONG[Math.floor(Math.random() * WRONG.length)] + " Это", "wrong", x, y);
+    const wrong = Math.floor(Math.random() * STR.ru.wrong.length);
+    showCard(code, () => t("wrong")[wrong] + " " + t("thisIs"), "wrong", x, y);
     if (game.attempts >= 3) giveHint();
   }
 
@@ -458,23 +496,28 @@
     const total = game.queue.length;
     const skipped = total - Object.keys(game.results).length;
     const score = Math.round(((counts[1] * 3 + counts[2] * 2 + counts[3]) / (total * 3)) * 100);
-    const mode = { countries: "страны", capitals: "столицы", flags: "флаги" }[game.mode];
-    const verdict = score === 100 ? "Идеально!" : score >= 85 ? `Вы отлично знаете ${mode}` : score >= 65 ? `Вы хорошо знаете ${mode}`
-      : score >= 40 ? `Вы более-менее знаете ${mode}` : `Есть куда расти`;
-
-    $("endTitle").textContent = verdict;
-    $("endScore").textContent = score + "%";
-    const rows = [
-      ["var(--first)", "С первой попытки", counts[1]],
-      ["var(--second)", "Со второй", counts[2]],
-      ["var(--third)", "С третьей", counts[3]],
-      ["var(--failed)", "Не отгадано", counts[4]],
-    ];
-    if (skipped) rows.push(["var(--land)", "Не дошли", skipped]);
-    rows.push(["transparent", "Время", $("timer").textContent]);
-    $("endStats").innerHTML = rows.map(([color, label, n]) => `<li><i style="background:${color}"></i>${label}</li><li><b>${n}</b></li>`).join("");
+    game.end = { counts, skipped, score, time: $("timer").textContent };
+    renderEnd();
     $("endModal").hidden = false;
     play(score >= 65 ? "win" : "lose");
+  }
+
+  function renderEnd() {
+    if (!game.end) return;
+    const { counts, skipped, score, time } = game.end;
+    const level = [85, 65, 40].find((n) => score >= n);
+    $("endTitle").textContent = score === 100 ? t("perfect")
+      : level ? t("know")[level].replace("{mode}", t("modeWhat")[game.mode]) : t("growRoom");
+    $("endScore").textContent = score + "%";
+    const rows = [
+      ["var(--first)", t("first"), counts[1]],
+      ["var(--second)", t("second"), counts[2]],
+      ["var(--third)", t("third"), counts[3]],
+      ["var(--failed)", t("failed"), counts[4]],
+    ];
+    if (skipped) rows.push(["var(--land)", t("skipped"), skipped]);
+    rows.push(["transparent", t("time"), time]);
+    $("endStats").innerHTML = rows.map(([color, label, n]) => `<li><i style="background:${color}"></i>${label}</li><li><b>${n}</b></li>`).join("");
   }
 
   /* ---------- Кнопки ---------- */
@@ -497,26 +540,44 @@
 
   function renderSoundButton() {
     $("soundBtn").classList.toggle("muted", !settings.sound);
-    $("soundBtn").title = settings.sound ? "Звук включён" : "Звук выключен";
+    $("soundBtn").title = t(settings.sound ? "soundOn" : "soundOff");
   }
   $("soundBtn").onclick = () => { settings.sound = !settings.sound; saveSettings(); renderSoundButton(); };
 
-  for (const box of document.querySelectorAll("#cardOptions input")) {
+  for (const box of document.querySelectorAll("#settingsModal input[data-field]")) {
     box.checked = settings[box.dataset.field];
     box.onchange = () => {
       settings[box.dataset.field] = box.checked;
       saveSettings();
-      if (cardState) {
-        const s = cardState;
-        showCard(s.code, s.verdict, s.verdictClass, s.clientX, s.clientY);
-      }
+      redrawCard();
     };
   }
+
+  // Переводит статичные тексты страницы и перерисовывает всё, что уже показано
+  function applyLanguage() {
+    document.documentElement.lang = settings.lang === "zh" ? "zh-Hans" : settings.lang;
+    document.title = t("appTitle");
+    for (const node of document.querySelectorAll("[data-t]")) node.textContent = t(node.dataset.t);
+    for (const node of document.querySelectorAll("[data-t-title]")) node.title = t(node.dataset.tTitle);
+    for (const node of document.querySelectorAll("[data-t-aria]")) node.setAttribute("aria-label", t(node.dataset.tAria));
+    $("langSelect").value = settings.lang;
+    renderSoundButton();
+    if (game.over) setProgress(Object.keys(game.results).length);
+    else showQuestion();
+    renderEnd();
+    redrawCard();
+    hideTooltip();
+  }
+  $("langSelect").onchange = (e) => {
+    settings.lang = e.target.value;
+    saveSettings();
+    applyLanguage();
+  };
   const openSettings = () => { $("settingsModal").hidden = false; };
   $("settingsBtn").onclick = openSettings;
   $("startSettingsBtn").onclick = openSettings;
   $("settingsClose").onclick = () => { $("settingsModal").hidden = true; };
 
-  renderSoundButton();
+  applyLanguage();
   applyView();
 })();
