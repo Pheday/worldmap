@@ -146,10 +146,7 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .grey-rings .ring-outer, .grey-rings .ring-inner { stroke-linejoin: round; stroke-linecap: round; }
 .grey-rings .ring-outer { fill: white; stroke: white; stroke-width: var(--ring-outer); }
 .grey-hits .ring-hit { fill: transparent; stroke: transparent; stroke-width: var(--ring-inner); stroke-linejoin: round; stroke-linecap: round; pointer-events: all; cursor: pointer; }
-.grey-rings-on .dot.other-dot { display: none; }
 .grey-rings .ring-inner { fill: black; stroke: black; stroke-width: var(--ring-inner); }
-.dot.other-dot { fill: var(--other); }
-.dot.other-dot:hover, .dot.other-dot.hover { fill: var(--other-hover); }
 .other:hover, .other.hover { fill: var(--other-hover); }
 .country { fill: var(--land); stroke: var(--border); stroke-width: 0.5; vector-effect: non-scaling-stroke; cursor: pointer; }
 .country:hover, .country.hover { fill: var(--land-hover); }

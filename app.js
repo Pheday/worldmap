@@ -141,13 +141,8 @@
   const markRing = capitalMark.appendChild(el("circle", { class: "mark-ring" }));
   const markCore = capitalMark.appendChild(el("circle", { class: "mark-core" }));
   viewport.append(countryLayer, capitalLayer, dotLayer, smallCapitalLayer, capitalMark);
-  // Крошечные серые территории (остров Ханс, Гибралтар…) — кружки, как у мелких стран
-  for (const o of DATA.other) {
-    if (!o.dot) continue;
-    const dot = dotLayer.appendChild(el("circle", { cx: o.dot[0], cy: o.dot[1], r: DOT_RADIUS, class: "dot other-dot" }));
-    dot.dataset.territory = o.code;
-    territories[o.code].els.push(dot);
-  }
+  // Крошечные серые территории (остров Ханс, Гибралтар…) кружками не рисуем, чтобы их нельзя было
+  // спутать с мелкими странами; видны они только при включённой обводке
   for (const c of DATA.countries) {
     if (c.capitalXY) {
       const layer = c.dot ? smallCapitalLayer : capitalLayer;
