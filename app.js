@@ -15,6 +15,9 @@
   // у кружка есть нижняя граница радиуса в пикселях экрана; при приближении она растёт быстрее, чем сам кружок,
   // но не больше DOT_MIN_PX_MAX. На ПК шириной от ~1400 px граница не срабатывает вовсе
   const DOT_MIN_PX = 2, DOT_MIN_PX_MAX = 6;
+  const DOT_GAP = 5; // px: отступ кольца от страны, когда кружок охватывает её целиком
+  const DOT_GAP_SHARE = 0.4; // но не больше такой доли радиуса страны — иначе на обзоре кольца раздуются
+  const DOT_RING_PASS_PX = 40; // кольцо крупнее этого (по диаметру на экране) не перехватывает клики
   const DRAG_THRESHOLD = 6;
 
   const byCode = Object.fromEntries(DATA.countries.map((c) => [c.code, c]));
@@ -158,6 +161,8 @@
       capitalDots[c.code] = layer.appendChild(el("circle", { cx: c.capitalXY[0], cy: c.capitalXY[1], class: "capital", "data-country": c.code }));
     }
   }
+  // Кружок мелкой страны: где он стоит и наименьший круг, охватывающий всю страну (для кольца при приближении)
+  const dotCircles = new Map(); // circle -> { x, y, fit: { x, y, r } }
   for (const c of DATA.countries) {
     const path = el("path", { d: c.d, class: "country" });
     path.dataset.code = c.code;
@@ -166,6 +171,7 @@
     if (c.dot && !c.outline) {
       const dot = el("circle", { cx: c.dot[0], cy: c.dot[1], r: DOT_RADIUS, class: "dot" });
       dot.dataset.code = c.code;
+      dotCircles.set(dot, { x: c.dot[0], y: c.dot[1], fit: enclosingCircle(c.d) });
       dotLayer.appendChild(dot);
       shapes[c.code].push(dot);
     }
@@ -307,6 +313,33 @@
     shapes[c.code].push(area);
   }
 
+  // Наименьший круг, содержащий все точки контура (алгоритм Велцля в итеративном виде)
+  function enclosingCircle(d) {
+    const pts = d.split(/[MLZ]/).filter(Boolean).map((p) => p.split(",").map(Number));
+    for (let i = pts.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pts[i], pts[j]] = [pts[j], pts[i]]; }
+    const inside = (c, p) => Math.hypot(p[0] - c.x, p[1] - c.y) <= c.r * (1 + 1e-9) + 1e-9;
+    const two = (a, b) => ({ x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, r: Math.hypot(a[0] - b[0], a[1] - b[1]) / 2 });
+    const three = (a, b, c) => {
+      const bx = b[0] - a[0], by = b[1] - a[1], cx = c[0] - a[0], cy = c[1] - a[1];
+      const dd = 2 * (bx * cy - by * cx);
+      if (Math.abs(dd) < 1e-12) return [two(a, b), two(a, c), two(b, c)].sort((p, q) => q.r - p.r)[0];
+      const ux = (cy * (bx * bx + by * by) - by * (cx * cx + cy * cy)) / dd;
+      const uy = (bx * (cx * cx + cy * cy) - cx * (bx * bx + by * by)) / dd;
+      return { x: a[0] + ux, y: a[1] + uy, r: Math.hypot(ux, uy) };
+    };
+    let c = { x: pts[0][0], y: pts[0][1], r: 0 };
+    for (let i = 1; i < pts.length; i++) {
+      if (inside(c, pts[i])) continue;
+      c = { x: pts[i][0], y: pts[i][1], r: 0 };
+      for (let j = 0; j < i; j++) {
+        if (inside(c, pts[j])) continue;
+        c = two(pts[i], pts[j]);
+        for (let k = 0; k < j; k++) if (!inside(c, pts[k])) c = three(pts[i], pts[j], pts[k]);
+      }
+    }
+    return c;
+  }
+
   function el(tag, attrs = {}) {
     const node = document.createElementNS(SVG_NS, tag);
     for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
@@ -331,7 +364,19 @@
     const pxPerUnit = (svg.getScreenCTM()?.a || 1) * view.k;
     const minDot = Math.min(DOT_MIN_PX_MAX, DOT_MIN_PX * Math.pow(view.k, 0.4)) / pxPerUnit;
     const r = Math.max(DOT_RADIUS / Math.pow(view.k, 0.8), minDot);
-    for (const dot of dotLayer.children) dot.setAttribute("r", r);
+    // Когда страна на экране дорастает до размера кружка, кружок превращается в кольцо вокруг всей страны
+    // с отступом DOT_GAP px (у совсем мелкой на экране страны — меньше, пропорционально ей): центр плавно переезжает к центру охватывающего круга, радиус не скачет.
+    // Крупное кольцо пропускает клики насквозь — к самой стране и к соседям, которых оно задевает
+    for (const [dot, { x, y, fit }] of dotCircles) {
+      const gap = Math.min(DOT_GAP / pxPerUnit, DOT_GAP_SHARE * fit.r);
+      const t = Math.min(1, Math.max(0, 2 * (fit.r + gap) / r - 1));
+      const cx = x + (fit.x - x) * t, cy = y + (fit.y - y) * t;
+      const rr = Math.max(r, fit.r + gap + Math.hypot(fit.x - cx, fit.y - cy));
+      dot.setAttribute("cx", cx);
+      dot.setAttribute("cy", cy);
+      dot.setAttribute("r", rr);
+      dot.classList.toggle("ring", 2 * rr * pxPerUnit > DOT_RING_PASS_PX);
+    }
     dotLayer.style.setProperty("--dot-fill", String(Math.max(0.12, 0.9 - 0.39 * Math.log2(view.k))));
     // Размеры знаков столиц задаём в пикселях экрана; при приближении они растут,
     // а на большом экране они изначально крупнее
