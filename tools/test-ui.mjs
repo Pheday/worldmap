@@ -125,6 +125,17 @@ console.log("Гренландия, сведения:", await page.$eval("#cardFa
 console.log("Гренландия, ссылки:", await page.$$eval("#cardFacts a", (a) => a.map((e) => decodeURIComponent(e.href.split("/wiki/")[1])).join(", ")));
 await shot(page, "5d-grey-card");
 await page.keyboard.press("Escape");
+// Гренландия крупным планом занимает большую часть карты — карточка ставится рядом с кликом, а не на край
+await page.mouse.move(grl.x, grl.y);
+for (let i = 0; i < 6; i++) { await page.mouse.wheel({ deltaY: -300 }); await new Promise((r) => setTimeout(r, 60)); }
+await new Promise((r) => setTimeout(r, 400));
+await page.mouse.click(400, 250);
+await new Promise((r) => setTimeout(r, 300));
+console.log("Гренландия крупно, карточка:", await page.$eval("#card", (e) => e.style.left + " " + e.style.top), "клик: 400 250");
+await shot(page, "5e-grey-card-zoomed");
+await page.keyboard.press("Escape");
+await page.click("#zoomReset");
+await new Promise((r) => setTimeout(r, 400));
 
 await setLang("ru");
 await page.click("#menuBtn");

@@ -809,6 +809,7 @@
   // по нему строим таблицу накопленных сумм и перебираем положения карточки:
   // цена = закрытая площадь страны + большой штраф за закрытую столицу + немного за удалённость от клика.
   const CELL = 8;
+  const BIG_SHAPE = 0.35; // страна закрывает больше этой доли карты — её не обходим
   const maskCanvas = document.createElement("canvas");
   const maskCtx = maskCanvas.getContext("2d", { willReadFrequently: true });
 
@@ -872,6 +873,11 @@
     const none = () => 0;
     let covered = none, coveredTarget = none;
     try { covered = shapeMask(elements, cols, rows); } catch (e) { /* без учёта страны */ }
+    // Страна занимает большую часть карты (Гренландия крупным планом) — закрыть её кусок не страшно,
+    // а уводить карточку на край незачем: ставим её просто рядом с местом клика
+    const mapCells = Math.max(1, (r.width / CELL) * (r.height / CELL));
+    const big = covered(Math.floor(r.left / CELL), Math.floor(r.top / CELL), Math.ceil(r.right / CELL), Math.ceil(r.bottom / CELL)) > BIG_SHAPE * mapCells;
+    if (big) covered = none;
     // Страну, которую сейчас надо найти, тоже по возможности не закрываем (но с меньшим весом)
     const target = game.over ? null : current();
     if (target && shapes[target] !== elements) {
@@ -889,6 +895,8 @@
       const cx1 = Math.ceil((left + w) / CELL), cy1 = Math.ceil((top + h) / CELL);
       let cost = (covered(cx0, cy0, cx1, cy1) + TARGET_WEIGHT * coveredTarget(cx0, cy0, cx1, cy1)) * CELL * CELL;
       if (cap && cap.x > left - CAP_PAD && cap.x < left + w + CAP_PAD && cap.y > top - CAP_PAD && cap.y < top + h + CAP_PAD) cost += area;
+      // Большую страну не обходим, но само место клика не закрываем
+      if (big && x > left - CAP_PAD && x < left + w + CAP_PAD && y > top - CAP_PAD && y < top + h + CAP_PAD) cost += area;
       if (qr) {
         const ox = Math.min(left + w, qr.right) - Math.max(left, qr.left);
         const oy = Math.min(top + h, qr.bottom) - Math.max(top, qr.top);
