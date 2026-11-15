@@ -10,6 +10,10 @@
   const maxZoom = () => Math.max(MIN_MAX_ZOOM, MAX_PX_PER_UNIT / (svg.getScreenCTM()?.a || 1));
   const SMALL_CAPITAL_MIN_PX = 24; // с какого размера страны-кружка на экране показывать её столицу
   const SMALL_CAPITAL_ALWAYS_ZOOM = 40; // при таком приближении столицы стран-кружков видны всегда
+  // Столица остальных стран видна, когда её знак занимает не больше CAPITAL_MAX_SHARE площади той части
+  // страны, где она стоит (без дальних островов и заморских земель), или когда приближение не меньше
+  // CAPITAL_ALWAYS_ZOOM. Иначе на телефоне без зума Европа и Африка покрыты точками
+  const CAPITAL_MAX_SHARE = 0.02, CAPITAL_ALWAYS_ZOOM = 12;
   const DOT_RADIUS = 4.5;
   // При приближении кружок перестаёт уменьшаться, когда дойдёт до своего «собственного» радиуса, и дальше
   // растёт вместе с картой. Этот радиус — по площади страны (круг той же площади ×DOT_AREA_SCALE + DOT_PAD),
@@ -157,11 +161,33 @@
   viewport.append(countryLayer, capitalLayer, dotLayer, smallCapitalLayer, capitalMark);
   // Крошечные особые территории (остров Ханс, Гибралтар…) кружками не рисуем, чтобы их нельзя было
   // спутать с мелкими странами; видны они только при включённой обводке
+  const capitalAreas = new Map(); // точка столицы -> площадь части страны со столицей, в единицах карты
   for (const c of DATA.countries) {
     if (c.capitalXY) {
       const layer = c.dot ? smallCapitalLayer : capitalLayer;
-      capitalDots[c.code] = layer.appendChild(el("circle", { cx: c.capitalXY[0], cy: c.capitalXY[1], class: "capital", "data-country": c.code }));
+      const dot = layer.appendChild(el("circle", { cx: c.capitalXY[0], cy: c.capitalXY[1], class: "capital", "data-country": c.code }));
+      capitalDots[c.code] = dot;
+      if (!c.dot) capitalAreas.set(dot, capitalPartArea(c.d, c.capitalXY));
     }
+  }
+
+  // Площадь контура (из «M…L…Z» в d), внутри которого стоит столица; если ни в одном — самого большого
+  function capitalPartArea(d, [px, py]) {
+    let best = 0;
+    for (const ring of d.split("Z")) {
+      if (!ring.startsWith("M")) continue;
+      const pts = ring.slice(1).split("L").map((p) => p.split(",").map(Number));
+      let area = 0, inside = false;
+      pts.forEach(([x, y], i) => {
+        const [x2, y2] = pts[(i + 1) % pts.length];
+        area += x * y2 - x2 * y;
+        if ((y > py) !== (y2 > py) && px < x + ((py - y) * (x2 - x)) / (y2 - y)) inside = !inside;
+      });
+      area = Math.abs(area / 2);
+      if (inside) return area;
+      best = Math.max(best, area);
+    }
+    return best;
   }
   const dotCircles = new Map(); // circle -> собственный радиус в единицах карты
   for (const c of DATA.countries) {
@@ -232,6 +258,8 @@
     // Подпись — у самого крупного куска: так видно, где какая территория. Клик по подписи — как по территории
     const label = ringLabelLayer.appendChild(el("text"));
     label.dataset.territory = o.code;
+    o.ringBox = sh.main; // их карточка старается не закрывать обводку и подпись
+    o.ringLabel = label;
     ringLabels.push({ o, box: sh.main, size: sh.size, el: label });
   });
 
@@ -376,7 +404,12 @@
     const screen = Math.min(1.8, Math.max(1, svg.clientWidth / 1100));
     const grow = screen * Math.min(4, Math.pow(view.k, 0.3));
     const cr = (1.3 * grow) / pxPerUnit;
-    for (const dot of capitalLayer.children) dot.setAttribute("r", cr);
+    const capArea = Math.PI * cr * cr;
+    for (const dot of capitalLayer.children) {
+      dot.setAttribute("r", cr);
+      const visible = view.k >= CAPITAL_ALWAYS_ZOOM || capArea <= CAPITAL_MAX_SHARE * capitalAreas.get(dot);
+      dot.style.display = visible ? "" : "none";
+    }
     for (const dot of smallCapitalLayer.children) {
       dot.setAttribute("r", cr);
       const visible = view.k >= SMALL_CAPITAL_ALWAYS_ZOOM || smallSize(dot) * pxPerUnit >= SMALL_CAPITAL_MIN_PX;
@@ -385,7 +418,7 @@
     // На обзорном масштабе точки бледнее, к приближению ×4 — в полную силу
     const fade = String(Math.min(1, 0.55 + 0.45 * Math.log(view.k) / Math.log(4)));
     capitalLayer.style.opacity = smallCapitalLayer.style.opacity = fade;
-    capitalMark.style.display = selectedCapital && selectedCapital.style.display !== "none" ? "" : "none";
+    capitalMark.style.display = capitalShown(selectedCapital) ? "" : "none";
     markRing.setAttribute("r", (3.6 * grow) / pxPerUnit);
     markCore.setAttribute("r", (1.4 * grow) / pxPerUnit);
     viewport.style.setProperty("--ring-outer", (2 * (RING_GAP + RING_WIDTH)) / pxPerUnit);
@@ -436,6 +469,10 @@
     }
     return smallSizes.get(dot);
   }
+
+  // Виден ли знак столицы выбранной страны. У обычных стран — всегда, даже если сама точка скрыта
+  // как слишком крупная для страны; у стран-кружков — только вместе с точкой (иначе знак закроет кружок)
+  const capitalShown = (dot) => !!dot && (dot.parentNode === capitalLayer || dot.style.display !== "none");
 
   let selectedCapital = null;
   function selectCapital(code) {
@@ -711,13 +748,38 @@
     $("cardNote").textContent = t(why);
     $("cardNote").hidden = false;
     card.hidden = false;
-    placeCard(o.els, null, clientX, clientY);
+    placeCard(o.els, null, clientX, clientY, territoryKeepOut(o));
+  }
+
+  // Что ещё, кроме контура, карточка территории старается не закрывать (прямоугольники на экране).
+  // Крошечная территория — это несколько пикселей контура, её закрытие почти ничего не «стоит»;
+  // у стран такие места занимают кружки, а у территорий — обводка с подписью или зона вокруг островка
+  const KEEP_PAD = 10, KEEP_MAX_PX = 40;
+  function territoryKeepOut(o) {
+    const rects = [];
+    const sr = svg.getBoundingClientRect();
+    if (settings.greyRings && o.ringBox) {
+      const m = viewport.getScreenCTM();
+      const p0 = new DOMPoint(o.ringBox.x0, o.ringBox.y0).matrixTransform(m);
+      const p1 = new DOMPoint(o.ringBox.x1, o.ringBox.y1).matrixTransform(m);
+      const pad = RING_GAP + RING_WIDTH + 2;
+      if (p1.x - p0.x < sr.width / 2) rects.push([p0.x - pad, p0.y - pad, p1.x + pad, p1.y + pad]);
+      const l = o.ringLabel;
+      if (l.isConnected && l.style.display !== "none") {
+        const r = l.getBoundingClientRect();
+        rects.push([r.left, r.top, r.right, r.bottom]);
+      }
+    } else {
+      const r = o.el.getBoundingClientRect();
+      if (Math.max(r.width, r.height) <= KEEP_MAX_PX) rects.push([r.left - KEEP_PAD, r.top - KEEP_PAD, r.right + KEEP_PAD, r.bottom + KEEP_PAD]);
+    }
+    return rects;
   }
 
   // Столица страны на экране (если её знак показан) — её карточка старается не закрывать
   function capitalPoint(code) {
     const dot = capitalDots[code];
-    if (!dot || dot.style.display === "none") return null;
+    if (!capitalShown(dot)) return null;
     return new DOMPoint(+dot.getAttribute("cx"), +dot.getAttribute("cy")).matrixTransform(dot.getScreenCTM());
   }
 
@@ -729,7 +791,7 @@
       img.hidden = false;
       // пока новая картинка грузится, браузер показывает старую — прячем её до загрузки
       img.style.visibility = "hidden";
-      img.onload = img.onerror = () => { img.style.visibility = ""; };
+      img.onload = img.onerror = () => { img.style.visibility = ""; replaceCard(); };
       img.src = src;
       if (img.complete) img.style.visibility = "";
     } else {
@@ -791,11 +853,14 @@
     };
   }
 
-  // elements — контур страны или территории, cap — точка столицы на экране (или null), x, y — место клика
-  function placeCard(elements, cap, x, y) {
+  // elements — контур страны или территории, cap — точка столицы на экране (или null), x, y — место клика,
+  // keepOut — прямоугольники [left, top, right, bottom], которые тоже лучше не закрывать
+  let lastPlace = null; // { args, h } — с чем ставили карточку в последний раз
+  function placeCard(elements, cap, x, y, keepOut = []) {
     if (window.matchMedia("(max-width: 640px)").matches) return; // на телефоне — снизу, через CSS
     const margin = 12;
     const w = card.offsetWidth, h = card.offsetHeight;
+    lastPlace = { args: [elements, cap, x, y, keepOut], h };
     // Держим карточку в пределах карты (не на панели сверху), если она туда помещается
     const r = svg.getBoundingClientRect();
     let minL = Math.max(margin, r.left + margin), maxL = Math.min(innerWidth, r.right) - w - margin;
@@ -829,6 +894,10 @@
         const oy = Math.min(top + h, qr.bottom) - Math.max(top, qr.top);
         if (ox > 0 && oy > 0) cost += ox * oy * 0.5;
       }
+      for (const [l, t, r, b] of keepOut) {
+        const ox = Math.min(left + w, r) - Math.max(left, l), oy = Math.min(top + h, b) - Math.max(top, t);
+        if (ox > 0 && oy > 0) cost += ox * oy * 2;
+      }
       // Ближе к месту клика — лучше (расстояние от точки клика до карточки)
       const dx = Math.max(left - x, 0, x - left - w), dy = Math.max(top - y, 0, y - top - h);
       cost += Math.hypot(dx, dy) * 2;
@@ -849,6 +918,12 @@
 
     card.style.left = best.left + "px";
     card.style.top = best.top + "px";
+  }
+
+  // Флаг и герб догружаются после того, как место для карточки уже выбрано, и карточка вырастает вниз —
+  // тогда выбираем место заново
+  function replaceCard() {
+    if (!card.hidden && lastPlace && card.offsetHeight !== lastPlace.h) placeCard(...lastPlace.args);
   }
 
   function hideCard() { card.hidden = true; cardState = null; selectCapital(null); }

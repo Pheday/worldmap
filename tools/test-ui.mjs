@@ -136,6 +136,11 @@ await page.setViewport({ width: 390, height: 800 });
 await page.click("#inspectBtn");
 await click("BRA");
 await shot(page, "6-mobile");
+console.log("телефон, столиц видно без зума:", await page.$$eval(".capitals:not(.capital-mark) .capital", (e) => e.filter((d) => d.style.display !== "none").length));
+await page.keyboard.press("Escape");
+await page.click("#settingsBtn");
+await shot(page, "6b-mobile-settings");
+await page.click("#settingsClose");
 
 console.log("ошибки в консоли:", errors.length ? errors : "нет");
 await browser.close();
