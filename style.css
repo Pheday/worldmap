@@ -154,7 +154,6 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .country.hover { fill: var(--land-hover); }
 .dot { fill: var(--land); stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; cursor: pointer; fill-opacity: var(--dot-fill, 0.9); }
 .dot.hover { fill: var(--land-hover); }
-.dot.ring { pointer-events: none; }
 .country.s1, .dot.s1 { fill: var(--first); }
 .country.s2, .dot.s2 { fill: var(--second); }
 .country.s3, .dot.s3 { fill: var(--third); }
