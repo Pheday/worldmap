@@ -11,6 +11,10 @@
   const SMALL_CAPITAL_MIN_PX = 24; // с какого размера страны-кружка на экране показывать её столицу
   const SMALL_CAPITAL_ALWAYS_ZOOM = 40; // при таком приближении столицы стран-кружков видны всегда
   const DOT_RADIUS = 4.5;
+  // На узком экране (телефон) вся карта мельче и кружок в DOT_RADIUS единиц карты был бы ~1 px — поэтому
+  // у кружка есть нижняя граница радиуса в пикселях экрана; при приближении она растёт быстрее, чем сам кружок,
+  // но не больше DOT_MIN_PX_MAX. На ПК шириной от ~1400 px граница не срабатывает вовсе
+  const DOT_MIN_PX = 2, DOT_MIN_PX_MAX = 6;
   const DRAG_THRESHOLD = 6;
 
   const byCode = Object.fromEntries(DATA.countries.map((c) => [c.code, c]));
@@ -324,12 +328,13 @@
     viewport.setAttribute("transform", `translate(${view.x} ${view.y}) scale(${view.k})`);
     // Кружки мелких стран почти не растут на экране при приближении и становятся прозрачнее,
     // чтобы сквозь них был виден контур самой страны
-    const r = DOT_RADIUS / Math.pow(view.k, 0.8);
+    const pxPerUnit = (svg.getScreenCTM()?.a || 1) * view.k;
+    const minDot = Math.min(DOT_MIN_PX_MAX, DOT_MIN_PX * Math.pow(view.k, 0.4)) / pxPerUnit;
+    const r = Math.max(DOT_RADIUS / Math.pow(view.k, 0.8), minDot);
     for (const dot of dotLayer.children) dot.setAttribute("r", r);
     dotLayer.style.setProperty("--dot-fill", String(Math.max(0.12, 0.9 - 0.39 * Math.log2(view.k))));
     // Размеры знаков столиц задаём в пикселях экрана; при приближении они растут,
     // а на большом экране они изначально крупнее
-    const pxPerUnit = (svg.getScreenCTM()?.a || 1) * view.k;
     const screen = Math.min(1.8, Math.max(1, svg.clientWidth / 1100));
     const grow = screen * Math.min(4, Math.pow(view.k, 0.3));
     const cr = (1.3 * grow) / pxPerUnit;
