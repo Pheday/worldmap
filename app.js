@@ -15,7 +15,11 @@
   // растёт вместе с картой. Этот радиус — по площади страны (круг той же площади ×DOT_AREA_SCALE + DOT_PAD),
   // а не описанный круг: у вытянутых стран (Палестина, Гамбия) описанный круг далеко залезал бы на соседей.
   // Радиусы соседних кружков ужимаются так, чтобы кружки не пересекались (Бахрейн и Катар)
+  // У совсем мелких стран (основная часть — не дальше DOT_SMALL от точки кружка) кружок охватывает основную
+  // часть целиком с запасом: такой круг всё равно мал и закрывает в основном море (Бахрейн, Мальта) — зато
+  // начинает расти вместе с картой раньше
   const DOT_AREA_SCALE = 1.1, DOT_PAD = 0.15, DOT_APART = 0.9;
+  const DOT_SMALL = 1.5, DOT_SMALL_SCALE = 1.2, DOT_SMALL_PAD = 0.25;
   const DRAG_THRESHOLD = 6;
 
   const byCode = Object.fromEntries(DATA.countries.map((c) => [c.code, c]));
@@ -168,7 +172,7 @@
     if (c.dot && !c.outline) {
       const dot = el("circle", { cx: c.dot[0], cy: c.dot[1], r: DOT_RADIUS, class: "dot" });
       dot.dataset.code = c.code;
-      dotCircles.set(dot, DOT_AREA_SCALE * Math.sqrt(pathArea(c.d) / Math.PI) + DOT_PAD);
+      dotCircles.set(dot, ownDotRadius(c));
       dotLayer.appendChild(dot);
       shapes[c.code].push(dot);
     }
@@ -325,19 +329,21 @@
     }
   }
 
-  // Площадь контура вида "Mx,yLx,y…Z…" в квадратных единицах карты
-  function pathArea(d) {
-    let sum = 0;
-    for (const ring of d.split("Z").filter(Boolean)) {
+  // Собственный радиус кружка страны-кружка в единицах карты (см. DOT_AREA_SCALE и DOT_SMALL)
+  function ownDotRadius(c) {
+    const rings = c.d.split("Z").filter(Boolean).map((ring) => {
       const pts = ring.slice(1).split("L").map((p) => p.split(",").map(Number));
       let a = 0;
       for (let i = 0; i < pts.length; i++) {
         const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % pts.length];
         a += x1 * y2 - x2 * y1;
       }
-      sum += Math.abs(a) / 2;
-    }
-    return sum;
+      return { pts, area: Math.abs(a) / 2 };
+    });
+    const byArea = DOT_AREA_SCALE * Math.sqrt(rings.reduce((s, r) => s + r.area, 0) / Math.PI) + DOT_PAD;
+    const main = rings.reduce((a, b) => (b.area > a.area ? b : a));
+    const reach = Math.max(...main.pts.map(([x, y]) => Math.hypot(x - c.dot[0], y - c.dot[1])));
+    return reach <= DOT_SMALL ? Math.max(byArea, DOT_SMALL_SCALE * reach + DOT_SMALL_PAD) : byArea;
   }
 
   function el(tag, attrs = {}) {
