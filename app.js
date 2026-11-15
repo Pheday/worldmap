@@ -16,10 +16,10 @@
   // а не описанный круг: у вытянутых стран (Палестина, Гамбия) описанный круг далеко залезал бы на соседей.
   // Радиусы соседних кружков ужимаются так, чтобы кружки не пересекались (Бахрейн и Катар)
   // У совсем мелких стран (основная часть — не дальше DOT_SMALL от точки кружка) кружок охватывает основную
-  // часть целиком с запасом: такой круг всё равно мал и закрывает в основном море (Бахрейн, Мальта) — зато
-  // начинает расти вместе с картой раньше
+  // часть целиком с запасом и не меньше DOT_MIN_OWN: такой круг закрывает лишь малую долю соседей (Ватикан — часть
+  // Италии) или море (Бахрейн, Мальта), зато начинает расти вместе с картой уже примерно с ×4
   const DOT_AREA_SCALE = 1.1, DOT_PAD = 0.15, DOT_APART = 0.9;
-  const DOT_SMALL = 1.5, DOT_SMALL_SCALE = 1.2, DOT_SMALL_PAD = 0.25;
+  const DOT_SMALL = 1.5, DOT_SMALL_SCALE = 1.2, DOT_SMALL_PAD = 0.25, DOT_MIN_OWN = 1.5;
   const DRAG_THRESHOLD = 6;
 
   const byCode = Object.fromEntries(DATA.countries.map((c) => [c.code, c]));
@@ -343,7 +343,7 @@
     const byArea = DOT_AREA_SCALE * Math.sqrt(rings.reduce((s, r) => s + r.area, 0) / Math.PI) + DOT_PAD;
     const main = rings.reduce((a, b) => (b.area > a.area ? b : a));
     const reach = Math.max(...main.pts.map(([x, y]) => Math.hypot(x - c.dot[0], y - c.dot[1])));
-    return reach <= DOT_SMALL ? Math.max(byArea, DOT_SMALL_SCALE * reach + DOT_SMALL_PAD) : byArea;
+    return reach <= DOT_SMALL ? Math.max(byArea, DOT_MIN_OWN, DOT_SMALL_SCALE * reach + DOT_SMALL_PAD) : byArea;
   }
 
   function el(tag, attrs = {}) {
