@@ -81,6 +81,7 @@ await shot(page, "4a-solomon");
 await click("VAT");
 await shot(page, "4-vatican");
 console.log("Ватикан:", await page.$eval("#cardFacts", (e) => e.innerText.replace(/\n/g, " | ")));
+console.log("Ватикан, ссылки:", await page.$$eval("#cardFacts a", (a) => a.map((e) => decodeURIComponent(e.href.split("/wiki/")[1])).join(", ")));
 const armsShown = () => page.$eval("#cardArms", (e) => e.parentElement.checkVisibility());
 console.log("герб по умолчанию виден:", await armsShown());
 await page.click("#settingsBtn");
@@ -120,6 +121,8 @@ await page.mouse.click(grl.x, grl.y);
 await new Promise((r) => setTimeout(r, 150));
 console.log("Гренландия:", await page.$eval("#cardName", (e) => e.textContent), "| статус:",
   await page.$eval("#cardFacts a", (e) => e.textContent + " → " + decodeURIComponent(e.href)));
+console.log("Гренландия, сведения:", await page.$eval("#cardFacts", (e) => e.innerText.replace(/\n/g, " | ")));
+console.log("Гренландия, ссылки:", await page.$$eval("#cardFacts a", (a) => a.map((e) => decodeURIComponent(e.href.split("/wiki/")[1])).join(", ")));
 await shot(page, "5d-grey-card");
 await page.keyboard.press("Escape");
 

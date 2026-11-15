@@ -608,8 +608,10 @@
   // Место по ВВП среди стран, по которым есть данные
   const gdpRanked = DATA.countries.filter((c) => c.gdp).sort((a, b) => b.gdp - a.gdp);
   const gdpRank = Object.fromEntries(gdpRanked.map((c, i) => [c.code, i + 1]));
-  const gdpText = (c) => !c.gdp ? t("noData")
-    : `<span class="nowrap" title="${t("gdpRankTitle")}">${fmt(c.gdp)} $ (${gdpRank[c.code]}/${gdpRanked.length}) <small>(${c.gdpYear})</small></span>`;
+  // У особых территорий места в рейтинге нет — он только среди стран
+  const gdpText = (c) => !c.gdp ? t("noData") : gdpRank[c.code]
+    ? `<span class="nowrap" title="${t("gdpRankTitle")}">${fmt(c.gdp)} $ (${gdpRank[c.code]}/${gdpRanked.length}) <small>(${c.gdpYear})</small></span>`
+    : `<span class="nowrap">${fmt(c.gdp)} $ <small>(${c.gdpYear})</small></span>`;
 
   let cardState = null; // что сейчас в карточке — чтобы перерисовать при смене настроек
 
@@ -623,24 +625,8 @@
     setCardName(tr(c, "name"), c.wiki && ruwikiUrl(c.wiki));
     selectCapital(code);
 
-    setImage("cardFlag", c.flag, t("noFlag"));
-    setImage("cardArms", c.arms, t("noArms"));
-    $("cardArmsCaption").textContent = t(c.armsIsEmblem ? "emblem" : "arms");
-    $("cardFlag").parentElement.hidden = !settings.flag;
-    $("cardArms").parentElement.hidden = !settings.arms;
-    document.querySelector(".card-images").hidden = !settings.flag && !settings.arms;
-
-    const currency = tr(c, "currency"), language = tr(c, "language");
-    const sep = settings.lang === "zh" ? "、" : ", ";
-    const facts = [
-      ["capital", t("capital"), c.capital ? escapeHtml(tr(c, "capital")) : t("noCapital")],
-      ["population", t("population"), c.population ? `${fmt(c.population)} <small>(${c.populationYear})</small>` : t("noPopulation")],
-      ["area", t("area"), c.area ? `${fmt(c.area)} ${t("km2")}` : "—"],
-      ["gdp", `<span title="${t("gdpTitle")}">${t("gdp")}</span>`, gdpText(c)],
-      ["currency", t(currency.length > 1 ? "currencies" : "currency"), escapeHtml(currency.join(sep)) || "—"],
-      ["language", t(language.length > 1 ? "languages" : "language"), escapeHtml(language.join(sep)) || "—"],
-    ].filter(([field]) => settings[field]);
-    $("cardFacts").innerHTML = facts.map(([, k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+    showImages(c);
+    $("cardFacts").innerHTML = factsHtml(c, false);
 
     card.hidden = false;
     placeCard(shapes[code], capitalPoint(code), clientX, clientY);
@@ -648,6 +634,39 @@
 
   const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
   const ruwikiUrl = (title) => "https://ru.ruwiki.ru/wiki/" + encodeURIComponent(title.replace(/ /g, "_"));
+  // Текст — ссылка на статью Рувики, если она известна
+  const wikiLink = (text, title) => title
+    ? `<a href="${ruwikiUrl(title)}" target="_blank" rel="noopener">${escapeHtml(text)}</a>` : escapeHtml(text);
+
+  function showImages(c) {
+    setImage("cardFlag", c.flag, t("noFlag"));
+    setImage("cardArms", c.arms, t("noArms"));
+    $("cardArmsCaption").textContent = t(c.armsIsEmblem ? "emblem" : "arms");
+    $("cardFlag").parentElement.hidden = !settings.flag;
+    $("cardArms").parentElement.hidden = !settings.arms;
+    document.querySelector(".card-images").hidden = !settings.flag && !settings.arms;
+  }
+
+  // Строки карточки: столица, население, площадь, ВВП, валюта, языки — какие выбраны в настройках.
+  // knownOnly (особые территории): строк без данных нет вовсе, а не «нет данных»
+  function factRows(c, knownOnly) {
+    const currency = tr(c, "currency"), language = tr(c, "language");
+    const sep = settings.lang === "zh" ? "、" : ", ";
+    const year = (y) => (y ? ` <small>(${y})</small>` : "");
+    const rows = [
+      ["capital", t("capital"), c.capital ? wikiLink(tr(c, "capital"), c.capitalWiki) : !knownOnly && t("noCapital")],
+      ["population", t("population"), c.population ? fmt(c.population) + year(c.populationYear)
+        : c.population === 0 || !knownOnly ? t("noPopulation") : null],
+      ["area", t("area"), c.area ? `${fmt(c.area)} ${t("km2")}` : !knownOnly && "—"],
+      ["gdp", `<span title="${t("gdpTitle")}">${t("gdp")}</span>`, c.gdp || !knownOnly ? gdpText(c) : null],
+      ["currency", t(currency.length > 1 ? "currencies" : "currency"),
+        currency.map((x, i) => wikiLink(x, c.currencyWiki?.[i])).join(sep) || (!knownOnly && "—")],
+      ["language", t(language.length > 1 ? "languages" : "language"), escapeHtml(language.join(sep)) || (!knownOnly && "—")],
+    ];
+    return rows.filter(([field, , v]) => settings[field] && v).map(([, k, v]) => [k, v]);
+  }
+  const factsHtml = (c, knownOnly, before = []) =>
+    [...before, ...factRows(c, knownOnly)].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
 
   // Заголовок карточки — ссылка на статью в Рувики (если она есть)
   function setCardName(name, url) {
@@ -665,7 +684,7 @@
     nullius: "Terra nullius", ata: "Договор об Антарктике",
   };
 
-  // Карточка особой территории: что это, кому принадлежит и почему не участвует в тесте
+  // Карточка особой территории: что это, кому принадлежит, известные сведения (как у стран) и почему не участвует в тесте
   function showTerritoryCard(code, clientX, clientY) {
     cardState = { territory: code, clientX, clientY };
     const o = territories[code];
@@ -673,7 +692,10 @@
     $("cardVerdict").textContent = "";
     $("cardVerdict").className = "card-verdict";
     setCardName(tr(o, "name"), o.wikiSearch ? "https://ru.ruwiki.ru/w/index.php?search=" + encodeURIComponent(o.wiki) : ruwikiUrl(o.wiki));
-    document.querySelector(".card-images").hidden = true;
+    showImages(o);
+    if (!o.flag) $("cardFlag").parentElement.hidden = true; // у территории без флага и герба места под картинки нет
+    if (!o.arms) $("cardArms").parentElement.hidden = true;
+    document.querySelector(".card-images").hidden = $("cardFlag").parentElement.hidden && $("cardArms").parentElement.hidden;
     const names = (codes) => escapeHtml(codes.map((c) => tr(byCode[c], "name")).join(settings.lang === "zh" ? "、" : ", "));
     const statusArticle = STATUS_WIKI[o.kind];
     const status = escapeHtml(capitalize(t("terr_" + o.kind)));
@@ -684,7 +706,7 @@
       o.claim && [t("terrClaim"), names(o.claim)],
       o.neither && [t("terrNeither"), names(o.neither)],
     ].filter(Boolean);
-    $("cardFacts").innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+    $("cardFacts").innerHTML = factsHtml(o, true, rows);
     const why = { disputed: "whyDisputed", border: "whyDisputed", nullius: "whyNullius", ata: "whyAntarctica" }[o.kind] || "whyNotState";
     $("cardNote").textContent = t(why);
     $("cardNote").hidden = false;

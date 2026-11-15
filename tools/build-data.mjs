@@ -1,11 +1,14 @@
-// Сводит Wikidata, Всемирный банк и ручные правки в tools/cache/countries.json.
+// Сводит Wikidata, Всемирный банк и ручные правки в tools/cache/countries.json,
+// для особых территорий — в tools/cache/territory-info.json.
 import fs from "fs";
+import { TERRITORIES } from "./territories.mjs";
 import { NAME, CAPITAL, CURRENCY, LANGUAGE, FLAG_FILE, ARMS_FILE, NAME_I18N, CAPITAL_I18N, TERM_I18N } from "./overrides.mjs";
 
 const wd = JSON.parse(fs.readFileSync("cache/wikidata.json", "utf8"));
 const wb = JSON.parse(fs.readFileSync("cache/worldbank.json", "utf8"));
 const i18n = JSON.parse(fs.readFileSync("cache/i18n.json", "utf8"));
 const map = JSON.parse(fs.readFileSync("cache/map.json", "utf8"));
+const td = JSON.parse(fs.readFileSync("cache/territories.json", "utf8"));
 
 const group = (rows, key) => {
   const out = {};
@@ -75,6 +78,8 @@ const upperFirst = (s) => s && s[0].toUpperCase() + s.slice(1);
 const terms = {}; // русское название валюты/языка → { en, zh }
 for (const r of i18n.currency) if (r.ru) terms[lowerFirst(r.ru)] ??= { en: upperFirst(r.en), zh: r.zh };
 for (const r of i18n.language) if (r.ru) terms[cleanLang(r.ru)] ??= { en: upperFirst(r.en), zh: r.zh };
+for (const r of td.currency) if (r.ru) terms[lowerFirst(r.ru)] ??= { en: upperFirst(r.en), zh: r.zh };
+for (const r of td.language) if (r.ru) terms[cleanLang(r.ru)] ??= { en: upperFirst(r.en), zh: r.zh };
 for (const [ru, [en, zh]] of Object.entries(TERM_I18N)) terms[ru] = { en: en ?? terms[ru]?.en, zh: zh ?? terms[ru]?.zh };
 const missing = new Set();
 const term = (ru, lang) => terms[ru]?.[lang] || (missing.add(`${lang}: ${ru}`), ru);
@@ -98,9 +103,54 @@ for (const [code, c] of Object.entries(countries)) {
     };
   }
 }
+
+// Особые территории: Всемирный банк по коду ISO, иначе Wikidata; ручные правки — те же таблицы overrides.mjs
+// (коды территорий не совпадают с кодами стран). Чего нет — null / пустой список, в карточке такие строки не показываются
+const tGroup = (rows, key) => {
+  const out = {};
+  for (const r of rows) if (r[key] != null && r[key] !== "") (out[r.c] ??= []).push(r);
+  return out;
+};
+const tBase = tGroup(td.base, "c"), tCaps = tGroup(td.capital, "ru"), tCurs = tGroup(td.currency, "ru"), tLangs = tGroup(td.language, "ru");
+const tPop = {}, tArea = {};
+for (const r of td.population) {
+  const year = /^\d{4}/.test(r.date || "") ? +r.date.slice(0, 4) : 0;
+  if (!tPop[r.c] || year > tPop[r.c].year) tPop[r.c] = { value: +r.pop, year };
+}
+for (const r of td.area) tArea[r.c] = Math.max(tArea[r.c] || 0, r.area / 1e6); // м² → км²
+const territories = {};
+for (const [code, t] of Object.entries(TERRITORIES)) {
+  const q = td.qids[code], base = tBase[q]?.[0] || {};
+  const iso = base.iso;
+  const pop = t.uninhabited ? { value: 0, year: null }
+    : wbPop.values[iso] != null ? { value: wbPop.values[iso], year: wbPop.year } : tPop[q]?.value != null ? tPop[q] : null;
+  // Площадь — сначала Wikidata: у Всемирного банка у территорий она бывает странной (Бермуды 4290 км², Гренландия 410 тыс. км²)
+  const area = tArea[q] || wbArea.values[iso];
+  const gdp = wbGdp.values[iso] != null ? { value: wbGdp.values[iso], year: wbGdp.year } : gdpFallback[iso];
+  const capRow = tCaps[q]?.[0];
+  const capital = code in CAPITAL ? CAPITAL[code] : capRow?.ru || null;
+  const capFix = CAPITAL_I18N[code];
+  const currency = CURRENCY[code] || [...new Set((tCurs[q] || []).map((r) => lowerFirst(r.ru)))];
+  const language = LANGUAGE[code] || [...new Set((tLangs[q] || []).map((r) => cleanLang(r.ru)))];
+  const x = territories[code] = {
+    capital, population: pop ? Math.round(pop.value) : null, populationYear: pop?.year || null,
+    area: area ? (area < 10 ? +area.toFixed(2) : Math.round(area)) : null,
+    gdp: gdp ? Math.round(gdp.value) : null, gdpYear: gdp?.year || null,
+    currency, language,
+    flagFile: FLAG_FILE[code] || fileName(base.flag), armsFile: ARMS_FILE[code] || fileName(base.arms) || fileName(base.emblem),
+    armsIsEmblem: !ARMS_FILE[code] && !base.arms && !!base.emblem,
+  };
+  for (const [i, lang] of LANGS.entries()) {
+    const cap = capital ? capFix?.[i] || (capRow?.ru === capital ? capRow[lang] : null) : null;
+    if (capital && !cap) missing.add(`${lang}: столица ${code}`);
+    x[lang] = { capital: cap || capital, currency: currency.map((c) => term(c, lang)), language: language.map((c) => term(c, lang)) };
+  }
+}
+
 if (missing.size) console.log("НЕТ ПЕРЕВОДА:", [...missing].join("; "));
 
 fs.writeFileSync("cache/countries.json", JSON.stringify(countries, null, 1));
+fs.writeFileSync("cache/territory-info.json", JSON.stringify(territories, null, 1));
 
 // Отчёт для ручной проверки
 const ref = process.argv[2] && JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
@@ -111,4 +161,6 @@ for (const [code, c] of Object.entries(countries)) {
     !c.language.length && "нет языка", !c.flagFile && "нет флага", !c.armsFile && "нет герба"].filter(Boolean);
   console.log(`${code} ${c.name} | ${c.capital} | ${c.population} (${c.populationYear}) | ${c.area} | ${c.gdp} (${c.gdpYear}) | ${c.currency.join(", ")} | ${c.language.join(", ")}${c.armsIsEmblem ? " | эмблема" : ""}${flags.length ? "  <<< " + flags.join("; ") : ""}`);
 }
+for (const [code, c] of Object.entries(territories))
+  console.log(`территория ${code} | ${c.capital ?? "—"} | ${c.population ?? "—"} (${c.populationYear ?? "—"}) | ${c.area ?? "—"} | ${c.gdp ?? "—"} (${c.gdpYear ?? "—"}) | ${c.currency.join(", ") || "—"} | ${c.language.join(", ") || "—"} | ${c.flagFile ? "флаг" : "без флага"}, ${c.armsFile ? (c.armsIsEmblem ? "эмблема" : "герб") : "без герба"}`);
 console.log("Население WB:", wbPop.year, "Площадь WB:", wbArea.year, "ВВП WB:", wbGdp.year);

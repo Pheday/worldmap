@@ -1,9 +1,10 @@
-// Скачивает флаги и гербы с Wikimedia Commons в data/flags и data/arms (PNG-миниатюры).
+// Скачивает флаги и гербы стран и особых территорий с Wikimedia Commons в data/flags и data/arms (PNG-миниатюры).
 // Уже скачанные файлы пропускает, так что скрипт можно перезапускать.
 import fs from "fs";
 
 const UA = "CountryQuizBuilder/1.0 (personal offline project)";
-const countries = JSON.parse(fs.readFileSync("cache/countries.json", "utf8"));
+// Страны и особые территории (коды не пересекаются)
+const countries = { ...JSON.parse(fs.readFileSync("cache/countries.json", "utf8")), ...JSON.parse(fs.readFileSync("cache/territory-info.json", "utf8")) };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function download(file, width, dest) {

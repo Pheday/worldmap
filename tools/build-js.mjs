@@ -10,6 +10,21 @@ const r1 = (v) => Math.round(v * 10) / 10;
 const map = JSON.parse(fs.readFileSync("cache/map.json", "utf8"));
 const info = JSON.parse(fs.readFileSync("cache/countries.json", "utf8"));
 const wb = JSON.parse(fs.readFileSync("cache/worldbank.json", "utf8"));
+const tInfo = JSON.parse(fs.readFileSync("cache/territory-info.json", "utf8"));
+const links = JSON.parse(fs.readFileSync("cache/links.json", "utf8")); // статьи Рувики о столицах и валютах
+
+// Сведения для карточки — общие у стран и особых территорий
+const facts = (code, c) => ({
+  capital: c.capital ? { ru: c.capital, en: c.en.capital, zh: c.zh.capital } : null,
+  capitalWiki: links[code]?.capital || null,
+  population: c.population, populationYear: c.populationYear, area: c.area, gdp: c.gdp, gdpYear: c.gdpYear,
+  currency: { ru: c.currency, en: c.en.currency, zh: c.zh.currency },
+  currencyWiki: c.currency.map((_, i) => links[code]?.currency[i] || null),
+  language: { ru: c.language, en: c.en.language, zh: c.zh.language },
+  flag: fs.existsSync(`../data/flags/${code}.png`) ? `data/flags/${code}.png` : null,
+  arms: fs.existsSync(`../data/arms/${code}.png`) ? `data/arms/${code}.png` : null,
+  armsIsEmblem: c.armsIsEmblem,
+});
 
 const countries = map.countries.map(({ code, d, dot }) => {
   const c = info[code];
@@ -17,14 +32,8 @@ const countries = map.countries.map(({ code, d, dot }) => {
     code, d, dot,
     // Тексты на трёх языках: { ru, en, zh }
     name: { ru: c.name, en: c.en.name, zh: c.zh.name },
-    capital: c.capital ? { ru: c.capital, en: c.en.capital, zh: c.zh.capital } : null,
+    ...facts(code, c),
     capitalXY: c.capitalCoord ? projection(c.capitalCoord).map(r1) : null,
-    population: c.population, populationYear: c.populationYear, area: c.area, gdp: c.gdp, gdpYear: c.gdpYear,
-    currency: { ru: c.currency, en: c.en.currency, zh: c.zh.currency },
-    language: { ru: c.language, en: c.en.language, zh: c.zh.language },
-    flag: fs.existsSync(`../data/flags/${code}.png`) ? `data/flags/${code}.png` : null,
-    arms: fs.existsSync(`../data/arms/${code}.png`) ? `data/arms/${code}.png` : null,
-    armsIsEmblem: c.armsIsEmblem,
     wiki: c.wiki, // заголовок статьи в Рувики
   };
 });
@@ -55,7 +64,8 @@ const other = map.other.map(({ code, name, d }) => {
   if (!n.ru || !n.en || !n.zh) throw new Error(`нет названия территории ${code}`);
   n.ru = n.ru.charAt(0).toUpperCase() + n.ru.slice(1); // «остров Мэн» у Natural Earth → «Остров Мэн»
   if (!t.wiki) throw new Error(`нет статьи Рувики для территории ${code}`);
-  return { code, d, dot: tinyDot(d), name: n, kind: t.kind, owner: t.owner, control: t.control, claim: t.claim, neither: t.neither, wiki: t.wiki, wikiSearch: t.wikiSearch };
+  if (!tInfo[code]) throw new Error(`нет сведений о территории ${code}: запустите build-data.mjs`);
+  return { code, d, dot: tinyDot(d), name: n, ...facts(code, tInfo[code]), kind: t.kind, owner: t.owner, control: t.control, claim: t.claim, neither: t.neither, wiki: t.wiki, wikiSearch: t.wikiSearch };
 });
 // Силуэт для обводки: особые территории (настройка «Отмечать территории с особым статусом») и островные государства,
 // чьи острова разбросаны по океану (у них обводка вместо кружка на одном острове).
