@@ -168,7 +168,8 @@ console.log("с опечаткой:", cap, "→", await page.$eval(`[data-code="
 await shot(page, "7b-type-right");
 target = await targetCode();
 await answer("абвгд");
-console.log("несуществующая столица:", await page.$eval("#toast", (e) => e.textContent), "| вопрос тот же:", (await targetCode()) === target);
+await shot(page, "7c-no-such-capital");
+console.log("несуществующая столица:", await page.$eval("#answerHint", (e) => (e.hidden ? "(скрыто) " : "") + e.textContent), "| вопрос тот же:", (await targetCode()) === target);
 const targetCap = await capitalOf(target);
 for (const w of ["Париж", "Берлин", "Рим", "Мадрид"].filter((x) => x !== targetCap).slice(0, 3)) await answer(w);
 console.log("три ошибки:", target, await page.$eval(`[data-code="${target}"]`, (e) => e.getAttribute("class")), "|", await cardLine());

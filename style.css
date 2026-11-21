@@ -150,6 +150,14 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .combo-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
 .combo-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
 .combo-toggle:hover { color: var(--text); background: none; }
+/* «Такой столицы нет» — пузырёк над полем */
+.answer-hint {
+  position: absolute; left: 0; bottom: calc(100% + 10px); z-index: 30; white-space: nowrap;
+  padding: 6px 12px; border-radius: 8px; background: var(--failed); color: #fff; font-weight: 600; font-size: 14px;
+  box-shadow: var(--shadow); pointer-events: none;
+}
+.answer-hint::after { content: ""; position: absolute; left: 18px; top: 100%; border: 6px solid transparent; border-top-color: var(--failed); }
+.answer-hint[hidden] { display: none; }
 /* Вопрос внизу карты — список раскрывается вверх */
 .combo-list {
   position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 30;

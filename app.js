@@ -994,6 +994,7 @@
       showTarget(current());
     }
     closeAnswerList();
+    hideAnswerHint();
   }
 
   function setProgress(done) {
@@ -1165,6 +1166,17 @@
     form.classList.add("shake");
   };
 
+  // Сообщение прямо над полем ответа: внимание игрока в этот момент внизу, а не на плашке сверху
+  let answerHintTimer = 0;
+  function showAnswerHint(text) {
+    const hint = $("answerHint");
+    hint.textContent = text;
+    hint.hidden = false;
+    clearTimeout(answerHintTimer);
+    answerHintTimer = setTimeout(hideAnswerHint, 2500);
+  }
+  function hideAnswerHint() { clearTimeout(answerHintTimer); $("answerHint").hidden = true; }
+
   function submitAnswer(text) {
     if (!answerMode()) return;
     const code = matchCapital(text);
@@ -1190,7 +1202,7 @@
     // Ни на одну столицу не похоже (опечатка, выдумка) — попыткой не считается
     if (!code) {
       hideCard();
-      toast(t("noSuchCapital"));
+      showAnswerHint(t("noSuchCapital"));
       answerInput.select();
       return;
     }
@@ -1227,6 +1239,7 @@
     return [...new Set(names)].sort((a, b) => a.localeCompare(b, LOCALE[settings.lang]));
   };
   function openAnswerList(all) {
+    hideAnswerHint();
     const q = norm(answerInput.value);
     let names = capitalNames();
     if (!all) {
@@ -1273,7 +1286,10 @@
 
   // Сам по себе список при вводе не открывается — чтобы вспоминали без подсказки.
   // Открытый кнопкой (или стрелкой) список при вводе сужается до подходящих столиц
-  answerInput.addEventListener("input", () => { if (!answerList.hidden) openAnswerList(!norm(answerInput.value)); });
+  answerInput.addEventListener("input", () => {
+    hideAnswerHint();
+    if (!answerList.hidden) openAnswerList(!norm(answerInput.value));
+  });
   answerInput.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !answerList.hidden) { e.preventDefault(); e.stopPropagation(); closeAnswerList(); return; }
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
