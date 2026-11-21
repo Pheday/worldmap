@@ -339,7 +339,7 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .modes { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 20px; text-align: left; }
 .modes label { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
 .modes label:has(input:checked) { border-color: var(--accent); background: #eef4fb; }
-.modes label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Фокус у переключателя режима (стрелки) не рисуем: выбранный режим и так выделен рамкой и фоном */
 .modes input:focus-visible { outline: none; }
 .modes span { color: var(--muted); margin-left: auto; font-size: 13px; }
 .end-score { font-size: 34px; font-weight: 700; margin: 8px 0; color: var(--accent); }
