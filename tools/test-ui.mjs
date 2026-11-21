@@ -174,17 +174,22 @@ await page.click("#dunnoBtn");
 console.log("не знаю:", target, await page.$eval(`[data-code="${target}"]`, (e) => e.getAttribute("class")), "|", await cardLine());
 
 // Тот же режим, выбор из списка: поиск при вводе и полный список по кнопке
+// При вводе список сам не открывается; кнопка — все столицы, ввод при открытом списке — сужает
 await page.type("#answerInput", "бер");
-console.log("поиск «бер»:", await page.$$eval("#answerList li", (e) => e.map((x) => x.textContent).join(", ")));
-await shot(page, "8-pick-search");
+console.log("ввод без кнопки, список открыт:", await page.$eval("#answerList", (e) => !e.hidden));
 await page.$eval("#answerInput", (e) => { e.value = ""; });
 await page.click("#answerToggle");
 console.log("полный список:", await page.$$eval("#answerList li", (e) => e.length), "столиц, первые:",
   await page.$$eval("#answerList li", (e) => e.slice(0, 3).map((x) => x.textContent).join(", ")));
 await shot(page, "8a-pick-all");
+await page.type("#answerInput", "бер");
+console.log("поиск «бер» в открытом списке:", await page.$$eval("#answerList li", (e) => e.map((x) => x.textContent).join(", ")));
+await shot(page, "8-pick-search");
+await page.$eval("#answerInput", (e) => { e.value = ""; });
 await page.click("#answerToggle");
 target = await targetCode();
 await page.type("#answerInput", (await capitalOf(target)).slice(0, 4));
+await page.keyboard.press("ArrowDown"); // открывает список подходящих
 await page.keyboard.press("ArrowDown");
 await page.keyboard.press("ArrowDown");
 await page.keyboard.press("ArrowUp");

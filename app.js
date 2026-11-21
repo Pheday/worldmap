@@ -1218,7 +1218,7 @@
     }
   }
 
-  // Выпадающий список: при вводе — найденные столицы, по кнопке — все
+  // Выпадающий список столиц: открывается кнопкой ▾ (все) или стрелкой вниз (подходящие к написанному)
   let listItems = [], listActive = -1, listAll = false;
   const capitalNames = () => {
     const names = DATA.countries.filter((c) => c.capital).map((c) => tr(c, "capital"));
@@ -1271,7 +1271,9 @@
   }
   const pick = (i) => { answerInput.value = listItems[i]; submitAnswer(listItems[i]); };
 
-  answerInput.addEventListener("input", () => openAnswerList(false));
+  // Сам по себе список при вводе не открывается — чтобы вспоминали без подсказки.
+  // Открытый кнопкой (или стрелкой) список при вводе сужается до подходящих столиц
+  answerInput.addEventListener("input", () => { if (!answerList.hidden) openAnswerList(!norm(answerInput.value)); });
   answerInput.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !answerList.hidden) { e.preventDefault(); e.stopPropagation(); closeAnswerList(); return; }
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
