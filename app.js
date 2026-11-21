@@ -1120,7 +1120,7 @@
   // Сколько опечаток прощаем: в коротких названиях — ни одной, в средних — одну, в длинных — две
   const typos = (len) => (len < 5 ? 0 : len < 9 ? 1 : 2);
 
-  // Чья это столица: код страны (своя — с опечатками, чужая — только точно), null — ничья, undefined — пусто
+  // Чья это столица: код страны (своя — с опечатками, чужая — только точно), null — такой нет, undefined — пусто
   function matchCapital(text) {
     const x = norm(text), target = current();
     if (!x) return undefined;
@@ -1186,19 +1186,21 @@
       }
       return;
     }
+    shakeAnswer();
+    // Ни на одну столицу не похоже (опечатка, выдумка) — попыткой не считается
+    if (!code) {
+      hideCard();
+      toast(t("noSuchCapital"));
+      answerInput.select();
+      return;
+    }
+    // Это столица другой страны — ошибка, показываем, чья она
     game.attempts++;
     play("wrong");
-    shakeAnswer();
-    const wrongs = STR.ru.wrongAnswer.length, w = Math.floor(Math.random() * wrongs);
-    if (code) {
-      // Это столица другой страны — показываем, какой
-      flash(code);
-      const p = screenPoint(code);
-      showCard(code, () => t("wrongAnswer")[w] + " " + t("capitalOf").replace("{capital}", tr(byCode[code], "capital")), "wrong", p.x, p.y);
-    } else {
-      hideCard();
-      toast(t("wrongAnswer")[w]);
-    }
+    const w = Math.floor(Math.random() * STR.ru.wrongAnswer.length);
+    flash(code);
+    const p = screenPoint(code);
+    showCard(code, () => t("wrongAnswer")[w] + " " + t("capitalOf").replace("{capital}", tr(byCode[code], "capital")), "wrong", p.x, p.y);
     if (game.attempts >= 3) revealCapital();
     else answerInput.select();
   }
@@ -1339,11 +1341,9 @@
     $("startModal").hidden = true;
     startGame(document.querySelector("input[name=mode]:checked").value);
   };
-  // Клик мышью по «Правилам» не оставляет на них фокус, чтобы Enter после него запускал игру, а не сворачивал правила
-  document.querySelector("#startModal .rules summary").addEventListener("mousedown", (e) => e.preventDefault());
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" || $("startModal").hidden || !$("settingsModal").hidden) return;
-    if (e.target.closest("button, summary, a")) return;
+    if (e.target.closest("button, a")) return;
     e.preventDefault();
     $("startBtn").click();
   });

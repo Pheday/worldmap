@@ -21,7 +21,7 @@ await page.goto(pathToFileURL(path.resolve("../index.html")).href);
 
 // Точка внутри контура страны в экранных координатах
 const pointIn = (code) => page.evaluate((code) => {
-  const el = document.querySelector(`.dot[data-code="${code}"]`) || document.querySelector(`.country[data-code="${code}"]`);
+  const el = document.querySelector(`.dot[data-code="${code}"]`) || document.querySelector(`.archi-area[data-code="${code}"]`) || document.querySelector(`.country[data-code="${code}"]`);
   const box = el.getBBox();
   const m = el.getScreenCTM();
   for (let i = 0; i < 4000; i++) {
@@ -167,7 +167,10 @@ await answer(cap.length >= 5 ? cap.slice(0, 2) + cap.slice(3) : cap); // с оп
 console.log("с опечаткой:", cap, "→", await page.$eval(`[data-code="${target}"]`, (e) => e.getAttribute("class")), "|", await cardLine());
 await shot(page, "7b-type-right");
 target = await targetCode();
-for (const w of ["абв", "где", "ёжик"]) await answer(w);
+await answer("абвгд");
+console.log("несуществующая столица:", await page.$eval("#toast", (e) => e.textContent), "| вопрос тот же:", (await targetCode()) === target);
+const targetCap = await capitalOf(target);
+for (const w of ["Париж", "Берлин", "Рим", "Мадрид"].filter((x) => x !== targetCap).slice(0, 3)) await answer(w);
 console.log("три ошибки:", target, await page.$eval(`[data-code="${target}"]`, (e) => e.getAttribute("class")), "|", await cardLine());
 target = await targetCode();
 await page.click("#dunnoBtn");
