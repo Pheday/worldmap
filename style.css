@@ -134,7 +134,7 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 .question-value { font-size: 24px; font-weight: 600; }
 .question-value img { height: 52px; display: block; border: 1px solid var(--line); }
 
-/* Поле для ответа столицей; в режиме выбора — с выпадающим списком */
+/* Поле для ответа столицей: пишут сами или выбирают в выпадающем списке */
 .question.answering { z-index: 2; flex-wrap: wrap; justify-content: center; row-gap: 8px; padding: 10px 14px 10px 20px; }
 .answer { display: flex; gap: 8px; pointer-events: auto; }
 .answer[hidden] { display: none; }
@@ -142,17 +142,14 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 @keyframes shake { 25% { transform: translateX(-6px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
 .combo { position: relative; display: flex; width: 260px; }
 .combo input {
-  flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 7px 12px;
+  flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 7px 36px 7px 12px;
   border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); outline: none;
 }
 .combo input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47, 111, 181, 0.18); }
-.combo-toggle { display: none; position: absolute; right: 1px; top: 1px; bottom: 1px; width: 34px; padding: 0; border: 0; border-radius: 0 7px 7px 0; background: none; color: var(--muted); }
+.combo-toggle { position: absolute; right: 1px; top: 1px; bottom: 1px; width: 34px; padding: 0; border: 0; border-radius: 0 7px 7px 0; background: none; color: var(--muted); }
 .combo-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
 .combo-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
 .combo-toggle:hover { color: var(--text); background: none; }
-.answer[data-kind="pick"] .combo-toggle { display: block; }
-.answer[data-kind="pick"] .combo input { padding-right: 36px; }
-.answer[data-kind="pick"] #answerBtn { display: none; }
 /* Вопрос внизу карты — список раскрывается вверх */
 .combo-list {
   position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 30;

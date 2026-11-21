@@ -53,9 +53,8 @@
     countries: { ask: "askCountries", has: () => true, show: (c) => escapeHtml(tr(c, "name")) },
     capitals: { ask: "askCapitals", has: (c) => !!c.capital, show: (c) => escapeHtml(tr(c, "capital")) },
     flags: { ask: "askFlags", has: (c) => !!c.flag, show: (c) => `<img src="${c.flag}" alt="${t("flag")}">` },
-    // Обратные режимы: страна подсвечена на карте, столицу пишут сами или выбирают из списка
-    typeCapital: { ask: "askTypeCapital", has: (c) => !!c.capital, show: (c) => escapeHtml(tr(c, "name")), answer: "type" },
-    pickCapital: { ask: "askPickCapital", has: (c) => !!c.capital, show: (c) => escapeHtml(tr(c, "name")), answer: "pick" },
+    // Обратный режим: страна подсвечена на карте, столицу пишут сами или выбирают из списка
+    nameCapital: { ask: "askNameCapital", has: (c) => !!c.capital, show: (c) => escapeHtml(tr(c, "name")), answer: true },
   };
 
   function saveSettings() {
@@ -989,8 +988,7 @@
     $("question").classList.toggle("answering", !!mode.answer);
     document.body.classList.toggle("answering", !!mode.answer);
     $("answer").hidden = !mode.answer;
-    $("answer").dataset.kind = mode.answer || "";
-    answerInput.placeholder = mode.answer ? t(mode.answer === "pick" ? "pickPlaceholder" : "typePlaceholder") : "";
+    answerInput.placeholder = t("answerPlaceholder");
     if (mode.answer) {
       setClass(current(), "target", true);
       showTarget(current());
@@ -1220,7 +1218,7 @@
     }
   }
 
-  // Выпадающий список (режим «Выбрать столицу»): при вводе — найденные столицы, по кнопке — все
+  // Выпадающий список: при вводе — найденные столицы, по кнопке — все
   let listItems = [], listActive = -1, listAll = false;
   const capitalNames = () => {
     const names = DATA.countries.filter((c) => c.capital).map((c) => tr(c, "capital"));
@@ -1249,7 +1247,8 @@
     answerList.scrollTop = 0;
     answerInput.setAttribute("aria-expanded", "true");
     $("answerToggle").setAttribute("aria-expanded", "true");
-    setActive(all ? names.indexOf(answerInput.value) : names.length ? 0 : -1, true);
+    // При вводе ничего не выделено: Enter отправляет написанное, а не первую подсказку
+    setActive(all ? names.indexOf(answerInput.value) : -1, true);
   }
   function closeAnswerList() {
     answerList.hidden = true;
@@ -1270,13 +1269,11 @@
     if (center) answerList.scrollTop = li.offsetTop - (answerList.clientHeight - li.offsetHeight) / 2;
     else li.scrollIntoView({ block: "nearest" });
   }
-  const pickMode = () => $("answer").dataset.kind === "pick";
   const pick = (i) => { answerInput.value = listItems[i]; submitAnswer(listItems[i]); };
 
-  answerInput.addEventListener("input", () => { if (pickMode()) openAnswerList(false); });
+  answerInput.addEventListener("input", () => openAnswerList(false));
   answerInput.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !answerList.hidden) { e.preventDefault(); e.stopPropagation(); closeAnswerList(); return; }
-    if (!pickMode()) return;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       if (answerList.hidden) { openAnswerList(!norm(answerInput.value)); return; }

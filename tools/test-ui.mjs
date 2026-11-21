@@ -149,7 +149,7 @@ const answer = async (text) => {
 const cardLine = () => page.$eval("#card", (e) => e.hidden ? "(карточки нет)"
   : document.getElementById("cardVerdict").textContent + " / " + document.getElementById("cardName").textContent);
 await page.click("#menuBtn");
-await page.click("input[value=typeCapital]");
+await page.click("input[value=nameCapital]");
 await page.click("#startBtn");
 target = await targetCode();
 console.log("назвать столицу:", target, "| подсвечена:", await page.$eval(`[data-code="${target}"]`, (e) => e.classList.contains("target")),
@@ -173,10 +173,7 @@ target = await targetCode();
 await page.click("#dunnoBtn");
 console.log("не знаю:", target, await page.$eval(`[data-code="${target}"]`, (e) => e.getAttribute("class")), "|", await cardLine());
 
-// Выбор из списка: поиск при вводе и полный список по кнопке
-await page.click("#menuBtn");
-await page.click("input[value=pickCapital]");
-await page.click("#startBtn");
+// Тот же режим, выбор из списка: поиск при вводе и полный список по кнопке
 await page.type("#answerInput", "бер");
 console.log("поиск «бер»:", await page.$$eval("#answerList li", (e) => e.map((x) => x.textContent).join(", ")));
 await shot(page, "8-pick-search");
@@ -188,6 +185,7 @@ await shot(page, "8a-pick-all");
 await page.click("#answerToggle");
 target = await targetCode();
 await page.type("#answerInput", (await capitalOf(target)).slice(0, 4));
+await page.keyboard.press("ArrowDown");
 await page.keyboard.press("ArrowDown");
 await page.keyboard.press("ArrowUp");
 const picked = await page.$eval("#answerList li.active", (e) => e.textContent);
@@ -224,7 +222,7 @@ await shot(page, "6b-mobile-settings");
 await page.click("#settingsClose");
 // Телефон в режиме выбора столицы: поле внизу, карточка — сверху
 await page.click("#menuBtn");
-await page.click("input[value=pickCapital]");
+await page.click("input[value=nameCapital]");
 await page.click("#startBtn");
 await page.click("#answerToggle");
 await shot(page, "6c-mobile-pick-list");
