@@ -48,6 +48,15 @@ const setLang = (lang) => page.evaluate((lang) => {
   document.querySelector(`#langMenu li[data-lang="${lang}"]`).click();
 }, lang);
 
+// Режим выбирается стрелками сразу после открытия страницы, и после клика по пустому месту окна
+const checkedMode = () => page.$eval("input[name=mode]:checked", (e) => e.value);
+await page.keyboard.press("ArrowDown");
+await page.keyboard.press("ArrowDown");
+const afterArrows = await checkedMode();
+await page.mouse.click(...(await page.$eval("#startModal h1", (e) => { const r = e.getBoundingClientRect(); return [r.left + 5, r.top + 5]; })));
+await page.keyboard.press("ArrowUp");
+console.log("стрелки:", afterArrows, "| после клика по окну и ↑:", await checkedMode(), "| фокус:", await page.evaluate(() => document.activeElement.value));
+await page.keyboard.press("ArrowUp");
 await setLang("ru");
 await page.click("#startBtn");
 let target = await targetCode();
@@ -200,12 +209,16 @@ await page.keyboard.press("ArrowDown"); // открывает список по�
 await page.keyboard.press("ArrowDown");
 await page.keyboard.press("ArrowDown");
 await page.keyboard.press("ArrowUp");
+// дальше стрелкой вниз до нужной столицы (подходящих к первым буквам может быть несколько)
+const want = await capitalOf(target);
+for (let i = 0; i < 20 && (await page.$eval("#answerList li.active", (e) => e.textContent)) !== want; i++) await page.keyboard.press("ArrowDown");
 const picked = await page.$eval("#answerList li.active", (e) => e.textContent);
 await page.keyboard.press("Enter");
 await new Promise((r) => setTimeout(r, 150));
 console.log("выбор стрелками:", picked, "|", target, await page.$eval(`[data-code="${target}"]`, (e) => e.getAttribute("class")), "|", await cardLine());
 await shot(page, "8b-pick-right");
 target = await targetCode();
+await page.$eval("#answerInput", (e) => { e.value = ""; });
 await page.click("#answerToggle");
 await page.evaluate((cap) => [...document.querySelectorAll("#answerList li")].find((li) => li.textContent === cap).click(), await capitalOf(target));
 await new Promise((r) => setTimeout(r, 150));

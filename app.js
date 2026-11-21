@@ -1348,13 +1348,26 @@
   };
   $("enoughBtn").onclick = () => { if (!game.over) finish(); };
   // Окно новой игры, открытое поверх игры, можно закрыть без изменений (при первом запуске — нельзя)
-  $("menuBtn").onclick = () => { hideCard(); $("startClose").hidden = false; $("startModal").hidden = false; };
+  // Фокус на выбранном режиме — его сразу можно менять стрелками, Enter запускает игру
+  const focusMode = () => document.querySelector("input[name=mode]:checked").focus();
+  $("menuBtn").onclick = () => { hideCard(); $("startClose").hidden = false; $("startModal").hidden = false; focusMode(); };
   const closeStart = () => { if (!$("startClose").hidden) $("startModal").hidden = true; };
   $("startClose").onclick = closeStart;
   $("startBtn").onclick = () => {
     $("startModal").hidden = true;
     startGame(document.querySelector("input[name=mode]:checked").value);
   };
+  // Стрелки меняют режим, даже если фокус ушёл с переключателей (например, после клика по пустому месту окна)
+  document.addEventListener("keydown", (e) => {
+    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
+    if ($("startModal").hidden || !$("settingsModal").hidden || !langMenu.hidden || e.target.closest("input, [role=listbox]")) return;
+    e.preventDefault();
+    const radios = [...document.querySelectorAll("input[name=mode]")];
+    const i = radios.findIndex((r) => r.checked), step = e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 1;
+    const next = radios[(i + step + radios.length) % radios.length];
+    next.checked = true;
+    next.focus();
+  });
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" || $("startModal").hidden || !$("settingsModal").hidden) return;
     if (e.target.closest("button, a")) return;
@@ -1456,4 +1469,5 @@
 
   applyLanguage();
   applyView();
+  focusMode();
 })();
