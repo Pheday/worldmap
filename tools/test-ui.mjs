@@ -187,6 +187,9 @@ console.log("полный список:", await page.$$eval("#answerList li", (e
 await shot(page, "8a-pick-all");
 await page.type("#answerInput", "бер");
 console.log("поиск «бер» в открытом списке:", await page.$$eval("#answerList li", (e) => e.map((x) => x.textContent).join(", ")));
+await page.click("#answerToggle");
+await page.click("#answerToggle");
+console.log("кнопка при написанном «бер»:", await page.$$eval("#answerList li", (e) => e.map((x) => x.textContent).join(", ")));
 await shot(page, "8-pick-search");
 await page.$eval("#answerInput", (e) => { e.value = ""; });
 await page.click("#answerToggle");

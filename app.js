@@ -1220,8 +1220,8 @@
     }
   }
 
-  // Выпадающий список столиц: открывается кнопкой ▾ (все) или стрелкой вниз (подходящие к написанному)
-  let listItems = [], listActive = -1, listAll = false;
+  // Выпадающий список столиц: открывается кнопкой ▾ или стрелкой вниз — подходящие к написанному, при пустом поле все
+  let listItems = [], listActive = -1;
   const capitalNames = () => {
     const names = DATA.countries.filter((c) => c.capital).map((c) => tr(c, "capital"));
     return [...new Set(names)].sort((a, b) => a.localeCompare(b, LOCALE[settings.lang]));
@@ -1241,7 +1241,6 @@
       names = [...starts, ...inside];
     }
     listItems = names;
-    listAll = all;
     answerList.innerHTML = names.length
       ? names.map((n, i) => `<li role="option" id="answerOpt${i}" data-i="${i}">${escapeHtml(n)}</li>`).join("")
       : `<li class="empty">${escapeHtml(t("nothingFound"))}</li>`;
@@ -1259,7 +1258,6 @@
     answerInput.removeAttribute("aria-activedescendant");
     listItems = [];
     listActive = -1;
-    listAll = false;
   }
   function setActive(i, center) {
     answerList.querySelector(".active")?.classList.remove("active");
@@ -1300,9 +1298,9 @@
   });
   $("answerToggle").addEventListener("mousedown", (e) => e.preventDefault());
   $("answerToggle").onclick = () => {
-    // Открыт полный список — кнопка его закрывает, список найденного — заменяет полным
-    if (!answerList.hidden && listAll) { closeAnswerList(); return; }
-    openAnswerList(true);
+    // Открытый список кнопка закрывает; иначе открывает столицы, подходящие к написанному (пусто — все)
+    if (!answerList.hidden) { closeAnswerList(); return; }
+    openAnswerList(!norm(answerInput.value));
     if (matchMedia("(pointer: fine)").matches) answerInput.focus();
   };
   $("answer").addEventListener("submit", (e) => { e.preventDefault(); submitAnswer(answerInput.value); });
