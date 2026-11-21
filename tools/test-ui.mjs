@@ -137,7 +137,77 @@ await page.keyboard.press("Escape");
 await page.click("#zoomReset");
 await new Promise((r) => setTimeout(r, 400));
 
+// Обратный режим: страна подсвечена, столицу пишут сами
 await setLang("ru");
+const capitalOf = (code) => page.evaluate((code) => QUIZ_DATA.countries.find((c) => c.code === code).capital.ru, code);
+const answer = async (text) => {
+  await page.$eval("#answerInput", (e) => { e.value = ""; });
+  await page.type("#answerInput", text);
+  await page.keyboard.press("Enter");
+  await new Promise((r) => setTimeout(r, 150));
+};
+const cardLine = () => page.$eval("#card", (e) => e.hidden ? "(карточки нет)"
+  : document.getElementById("cardVerdict").textContent + " / " + document.getElementById("cardName").textContent);
+await page.click("#menuBtn");
+await page.click("input[value=typeCapital]");
+await page.click("#startBtn");
+target = await targetCode();
+console.log("назвать столицу:", target, "| подсвечена:", await page.$eval(`[data-code="${target}"]`, (e) => e.classList.contains("target")),
+  "| фокус в поле:", await page.evaluate(() => document.activeElement.id));
+await click(target);
+console.log("карточка спрашиваемой страны без столицы:", !(await page.$eval("#cardFacts", (e) => e.innerText.includes("Столица"))));
+await page.keyboard.press("Escape");
+await shot(page, "7-type-capital");
+const otherCap = target === "FRA" ? "берлин" : "париж";
+await answer(otherCap);
+console.log("чужая столица:", await cardLine());
+await shot(page, "7a-type-wrong");
+const cap = await capitalOf(target);
+await answer(cap.length >= 5 ? cap.slice(0, 2) + cap.slice(3) : cap); // с опечаткой
+console.log("с опечаткой:", cap, "→", await page.$eval(`[data-code="${target}"]`, (e) => e.getAttribute("class")), "|", await cardLine());
+await shot(page, "7b-type-right");
+target = await targetCode();
+for (const w of ["абв", "где", "ёжик"]) await answer(w);
+console.log("три ошибки:", target, await page.$eval(`[data-code="${target}"]`, (e) => e.getAttribute("class")), "|", await cardLine());
+target = await targetCode();
+await page.click("#dunnoBtn");
+console.log("не знаю:", target, await page.$eval(`[data-code="${target}"]`, (e) => e.getAttribute("class")), "|", await cardLine());
+
+// Выбор из списка: поиск при вводе и полный список по кнопке
+await page.click("#menuBtn");
+await page.click("input[value=pickCapital]");
+await page.click("#startBtn");
+await page.type("#answerInput", "бер");
+console.log("поиск «бер»:", await page.$$eval("#answerList li", (e) => e.map((x) => x.textContent).join(", ")));
+await shot(page, "8-pick-search");
+await page.$eval("#answerInput", (e) => { e.value = ""; });
+await page.click("#answerToggle");
+console.log("полный список:", await page.$$eval("#answerList li", (e) => e.length), "столиц, первые:",
+  await page.$$eval("#answerList li", (e) => e.slice(0, 3).map((x) => x.textContent).join(", ")));
+await shot(page, "8a-pick-all");
+await page.click("#answerToggle");
+target = await targetCode();
+await page.type("#answerInput", (await capitalOf(target)).slice(0, 4));
+await page.keyboard.press("ArrowDown");
+await page.keyboard.press("ArrowUp");
+const picked = await page.$eval("#answerList li.active", (e) => e.textContent);
+await page.keyboard.press("Enter");
+await new Promise((r) => setTimeout(r, 150));
+console.log("выбор стрелками:", picked, "|", target, await page.$eval(`[data-code="${target}"]`, (e) => e.getAttribute("class")), "|", await cardLine());
+await shot(page, "8b-pick-right");
+target = await targetCode();
+await page.click("#answerToggle");
+await page.evaluate((cap) => [...document.querySelectorAll("#answerList li")].find((li) => li.textContent === cap).click(), await capitalOf(target));
+await new Promise((r) => setTimeout(r, 150));
+console.log("выбор мышью:", target, await page.$eval(`[data-code="${target}"]`, (e) => e.getAttribute("class")));
+await setLang("en");
+console.log("en:", await page.$eval("#questionLabel", (e) => e.textContent), "|", await page.$eval("#answerInput", (e) => e.placeholder), "|", await cardLine());
+await shot(page, "8c-pick-en");
+await setLang("ru");
+await page.click("#enoughBtn");
+console.log("итог по столицам:", await page.$eval("#endTitle", (e) => e.textContent), "|", await page.$eval("#endStats", (e) => e.innerText.replace(/\n/g, " ")));
+
+await page.click("#againBtn");
 await page.click("#menuBtn");
 await page.click("input[value=countries]");
 await page.click("#startBtn");
@@ -152,6 +222,19 @@ await page.keyboard.press("Escape");
 await page.click("#settingsBtn");
 await shot(page, "6b-mobile-settings");
 await page.click("#settingsClose");
+// Телефон в режиме выбора столицы: поле внизу, карточка — сверху
+await page.click("#menuBtn");
+await page.click("input[value=pickCapital]");
+await page.click("#startBtn");
+await page.click("#answerToggle");
+await shot(page, "6c-mobile-pick-list");
+await page.click("#answerToggle");
+target = await targetCode();
+await page.type("#answerInput", await capitalOf(target));
+await page.keyboard.press("Enter");
+await new Promise((r) => setTimeout(r, 300));
+console.log("телефон, после ответа:", await cardLine());
+await shot(page, "6d-mobile-pick-right");
 
 console.log("ошибки в консоли:", errors.length ? errors : "нет");
 await browser.close();

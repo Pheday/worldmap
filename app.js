@@ -53,6 +53,9 @@
     countries: { ask: "askCountries", has: () => true, show: (c) => escapeHtml(tr(c, "name")) },
     capitals: { ask: "askCapitals", has: (c) => !!c.capital, show: (c) => escapeHtml(tr(c, "capital")) },
     flags: { ask: "askFlags", has: (c) => !!c.flag, show: (c) => `<img src="${c.flag}" alt="${t("flag")}">` },
+    // Обратные режимы: страна подсвечена на карте, столицу пишут сами или выбирают из списка
+    typeCapital: { ask: "askTypeCapital", has: (c) => !!c.capital, show: (c) => escapeHtml(tr(c, "name")), answer: "type" },
+    pickCapital: { ask: "askPickCapital", has: (c) => !!c.capital, show: (c) => escapeHtml(tr(c, "name")), answer: "pick" },
   };
 
   function saveSettings() {
@@ -691,7 +694,7 @@
     const sep = settings.lang === "zh" ? "、" : ", ";
     const year = (y) => (y ? ` <small>(${y})</small>` : "");
     const rows = [
-      ["capital", t("capital"), c.capital ? wikiLink(tr(c, "capital"), c.capitalWiki) : !knownOnly && t("noCapital")],
+      ["capital", t("capital"), capitalAsked(c) ? null : c.capital ? wikiLink(tr(c, "capital"), c.capitalWiki) : !knownOnly && t("noCapital")],
       ["population", t("population"), c.population ? fmt(c.population) + year(c.populationYear)
         : c.population === 0 || !knownOnly ? t("noPopulation") : null],
       ["area", t("area"), c.area ? `${fmt(c.area)} ${t("km2")}` : !knownOnly && "—"],
@@ -948,6 +951,10 @@
   const game = { mode: "countries", queue: [], index: 0, attempts: 0, hinted: false, results: {}, over: true, started: 0, timer: 0 };
 
   const current = () => game.queue[game.index];
+  // Режим, где отвечают столицей (а не кликом по карте)
+  const answerMode = () => !game.over && MODES[game.mode].answer;
+  // Столицу страны, о которой сейчас спрашивают, карточка не показывает — иначе это подсказка
+  const capitalAsked = (c) => !!answerMode() && c.code === current();
 
   function shuffle(a) {
     for (let i = a.length - 1; i > 0; i--) {
@@ -958,7 +965,7 @@
   }
 
   function startGame(mode) {
-    for (const code in shapes) for (const cls of ["s1", "s2", "s3", "s4", "hint", "flash"]) setClass(code, cls, false);
+    for (const code in shapes) for (const cls of ["s1", "s2", "s3", "s4", "hint", "flash", "target"]) setClass(code, cls, false);
     Object.assign(game, {
       mode, index: 0, attempts: 0, hinted: false, results: {}, over: false, started: Date.now(),
       queue: shuffle(DATA.countries.filter(MODES[mode].has).map((c) => c.code)),
@@ -969,7 +976,9 @@
     hideCard();
     updateTimer();
     $("question").hidden = false;
+    answerInput.value = "";
     showQuestion();
+    if (MODES[mode].answer) focusAnswer();
   }
 
   function showQuestion() {
@@ -977,6 +986,16 @@
     $("questionLabel").textContent = t(mode.ask);
     $("questionValue").innerHTML = mode.show(byCode[current()]);
     setProgress(game.index);
+    $("question").classList.toggle("answering", !!mode.answer);
+    document.body.classList.toggle("answering", !!mode.answer);
+    $("answer").hidden = !mode.answer;
+    $("answer").dataset.kind = mode.answer || "";
+    answerInput.placeholder = mode.answer ? t(mode.answer === "pick" ? "pickPlaceholder" : "typePlaceholder") : "";
+    if (mode.answer) {
+      setClass(current(), "target", true);
+      showTarget(current());
+    }
+    closeAnswerList();
   }
 
   function setProgress(done) {
@@ -991,7 +1010,8 @@
   }
 
   function onCountryClick(code, x, y) {
-    if (game.over) { showCard(code, "", "", x, y); return; }
+    // В режимах со столицами клик по карте — просто справка о стране
+    if (game.over || answerMode()) { showCard(code, "", "", x, y); return; }
 
     if (game.results[code]) { showCard(code, () => t("known"), "known", x, y); return; }
 
@@ -1023,6 +1043,7 @@
   }
 
   function next() {
+    if (current()) setClass(current(), "target", false);
     game.index++;
     game.attempts = 0;
     game.hinted = false;
@@ -1048,10 +1069,12 @@
     game.over = true;
     clearInterval(game.timer);
     updateTimer();
-    if (game.queue[game.index]) setClass(game.queue[game.index], "hint", false);
+    if (game.queue[game.index]) for (const cls of ["hint", "target"]) setClass(game.queue[game.index], cls, false);
+    closeAnswerList();
     $("dunnoBtn").disabled = $("enoughBtn").disabled = true;
     hideCard();
     $("question").hidden = true;
+    document.body.classList.remove("answering");
     setProgress(Object.keys(game.results).length);
 
     const counts = [0, 0, 0, 0, 0];
@@ -1064,6 +1087,224 @@
     $("endModal").hidden = false;
     play(score >= 65 ? "win" : "lose");
   }
+
+  /* ---------- Ответ столицей ---------- */
+
+  const answerInput = $("answerInput"), answerList = $("answerList");
+
+  // Сравниваем без регистра, диакритики (ё = е), пробелов, дефисов и пояснений в скобках
+  const norm = (s) => s.replace(/\(.*?\)/g, "").normalize("NFD").replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
+  // Варианты ответа: название на любом из языков, а для «Washington, D.C.» — и часть до запятой
+  function capitalVariants(c) {
+    const out = new Set();
+    for (const name of Object.values(c.capital)) {
+      out.add(norm(name));
+      if (name.includes(",")) out.add(norm(name.split(",")[0]));
+    }
+    out.delete("");
+    return out;
+  }
+  const variants = Object.fromEntries(DATA.countries.filter((c) => c.capital).map((c) => [c.code, capitalVariants(c)]));
+
+  // Расстояние Дамерау — Левенштейна (перестановка соседних букв — одна ошибка)
+  function editDistance(a, b) {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+      }
+    }
+    return d[a.length][b.length];
+  }
+  // Сколько опечаток прощаем: в коротких названиях — ни одной, в средних — одну, в длинных — две
+  const typos = (len) => (len < 5 ? 0 : len < 9 ? 1 : 2);
+
+  // Чья это столица: код страны (своя — с опечатками, чужая — только точно), null — ничья, undefined — пусто
+  function matchCapital(text) {
+    const x = norm(text), target = current();
+    if (!x) return undefined;
+    if (variants[target].has(x)) return target;
+    const other = Object.keys(variants).find((code) => variants[code].has(x));
+    if (other) return other;
+    for (const v of variants[target]) if (editDistance(x, v) <= typos(v.length)) return target;
+    return null;
+  }
+
+  // Центр видимой части страны на экране — карточка ставится так, будто по этому месту кликнули
+  function screenPoint(code) {
+    const r = svg.getBoundingClientRect();
+    let box = null;
+    for (const s of shapes[code]) {
+      const b = s.getBoundingClientRect();
+      if (!b.width && !b.height) continue;
+      box = box ? { l: Math.min(box.l, b.left), t: Math.min(box.t, b.top), r: Math.max(box.r, b.right), b: Math.max(box.b, b.bottom) }
+        : { l: b.left, t: b.top, r: b.right, b: b.bottom };
+    }
+    if (!box) return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    const l = Math.max(box.l, r.left), tp = Math.max(box.t, r.top), rr = Math.min(box.r, r.right), b = Math.min(box.b, r.bottom);
+    return rr > l && b > tp ? { x: (l + rr) / 2, y: (tp + b) / 2 } : { x: (box.l + box.r) / 2, y: (box.t + box.b) / 2 };
+  }
+
+  // Страна, о которой спрашивают, целиком за краем карты — показываем весь мир
+  function showTarget(code) {
+    const r = svg.getBoundingClientRect();
+    const visible = shapes[code].some((s) => {
+      const b = s.getBoundingClientRect();
+      return b.right > r.left && b.left < r.right && b.bottom > r.top && b.top < r.bottom;
+    });
+    if (!visible) { view.k = 1; view.x = view.y = 0; applyView(); }
+  }
+
+  // На телефоне сами не ставим курсор в поле — экранная клавиатура закрыла бы карту
+  const focusAnswer = () => { if (matchMedia("(pointer: fine)").matches) answerInput.focus(); };
+  const shakeAnswer = () => {
+    const form = $("answer");
+    form.classList.remove("shake");
+    void form.offsetWidth;
+    form.classList.add("shake");
+  };
+
+  function submitAnswer(text) {
+    if (!answerMode()) return;
+    const code = matchCapital(text);
+    if (code === undefined) return;
+    closeAnswerList();
+    const target = current();
+    if (code === target) {
+      const result = game.attempts + 1;
+      game.results[target] = result;
+      setClass(target, "s" + result, true);
+      toast(t("right"));
+      play("right");
+      answerInput.value = "";
+      const p = screenPoint(target);
+      next();
+      if (!game.over) {
+        showCard(target, () => t("right") + " " + t("capitalOf").replace("{capital}", tr(byCode[target], "capital")), "right", p.x, p.y);
+        focusAnswer();
+      }
+      return;
+    }
+    game.attempts++;
+    play("wrong");
+    shakeAnswer();
+    const wrongs = STR.ru.wrongAnswer.length, w = Math.floor(Math.random() * wrongs);
+    if (code) {
+      // Это столица другой страны — показываем, какой
+      flash(code);
+      const p = screenPoint(code);
+      showCard(code, () => t("wrongAnswer")[w] + " " + t("capitalOf").replace("{capital}", tr(byCode[code], "capital")), "wrong", p.x, p.y);
+    } else {
+      hideCard();
+      toast(t("wrongAnswer")[w]);
+    }
+    if (game.attempts >= 3) revealCapital();
+    else answerInput.select();
+  }
+
+  // Три ошибки или «Не знаю»: показываем правильный ответ, страна становится красной
+  function revealCapital() {
+    const target = current();
+    game.results[target] = 4;
+    setClass(target, "s4", true);
+    answerInput.value = "";
+    closeAnswerList();
+    const p = screenPoint(target);
+    next();
+    if (!game.over) {
+      showCard(target, () => t("rememberCapital").replace("{capital}", tr(byCode[target], "capital")), "wrong", p.x, p.y);
+      focusAnswer();
+    }
+  }
+
+  // Выпадающий список (режим «Выбрать столицу»): при вводе — найденные столицы, по кнопке — все
+  let listItems = [], listActive = -1, listAll = false;
+  const capitalNames = () => {
+    const names = DATA.countries.filter((c) => c.capital).map((c) => tr(c, "capital"));
+    return [...new Set(names)].sort((a, b) => a.localeCompare(b, LOCALE[settings.lang]));
+  };
+  function openAnswerList(all) {
+    const q = norm(answerInput.value);
+    let names = capitalNames();
+    if (!all) {
+      if (!q) { closeAnswerList(); return; }
+      // Сначала те, что начинаются с введённого, потом те, где оно в середине
+      const starts = [], inside = [];
+      for (const n of names) {
+        const v = norm(n);
+        if (v.startsWith(q)) starts.push(n);
+        else if (v.includes(q)) inside.push(n);
+      }
+      names = [...starts, ...inside];
+    }
+    listItems = names;
+    listAll = all;
+    answerList.innerHTML = names.length
+      ? names.map((n, i) => `<li role="option" id="answerOpt${i}" data-i="${i}">${escapeHtml(n)}</li>`).join("")
+      : `<li class="empty">${escapeHtml(t("nothingFound"))}</li>`;
+    answerList.hidden = false;
+    answerList.scrollTop = 0;
+    answerInput.setAttribute("aria-expanded", "true");
+    $("answerToggle").setAttribute("aria-expanded", "true");
+    setActive(all ? names.indexOf(answerInput.value) : names.length ? 0 : -1, true);
+  }
+  function closeAnswerList() {
+    answerList.hidden = true;
+    answerInput.setAttribute("aria-expanded", "false");
+    $("answerToggle").setAttribute("aria-expanded", "false");
+    answerInput.removeAttribute("aria-activedescendant");
+    listItems = [];
+    listActive = -1;
+    listAll = false;
+  }
+  function setActive(i, center) {
+    answerList.querySelector(".active")?.classList.remove("active");
+    listActive = i;
+    const li = i >= 0 ? answerList.children[i] : null;
+    if (!li) { answerInput.removeAttribute("aria-activedescendant"); return; }
+    li.classList.add("active");
+    answerInput.setAttribute("aria-activedescendant", li.id);
+    if (center) answerList.scrollTop = li.offsetTop - (answerList.clientHeight - li.offsetHeight) / 2;
+    else li.scrollIntoView({ block: "nearest" });
+  }
+  const pickMode = () => $("answer").dataset.kind === "pick";
+  const pick = (i) => { answerInput.value = listItems[i]; submitAnswer(listItems[i]); };
+
+  answerInput.addEventListener("input", () => { if (pickMode()) openAnswerList(false); });
+  answerInput.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !answerList.hidden) { e.preventDefault(); e.stopPropagation(); closeAnswerList(); return; }
+    if (!pickMode()) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (answerList.hidden) { openAnswerList(!norm(answerInput.value)); return; }
+      if (!listItems.length) return;
+      const step = e.key === "ArrowDown" ? 1 : -1;
+      setActive(listActive < 0 ? (step > 0 ? 0 : listItems.length - 1) : (listActive + step + listItems.length) % listItems.length);
+    } else if (e.key === "Enter" && !answerList.hidden && listActive >= 0) {
+      e.preventDefault();
+      pick(listActive);
+    }
+  });
+  answerInput.addEventListener("blur", () => setTimeout(() => {
+    if (!$("answer").contains(document.activeElement)) closeAnswerList();
+  }, 150));
+  // mousedown не уводит фокус из поля — иначе список закрылся бы раньше, чем сработает выбор
+  answerList.addEventListener("mousedown", (e) => e.preventDefault());
+  answerList.addEventListener("click", (e) => {
+    const li = e.target.closest("li[data-i]");
+    if (li) pick(+li.dataset.i);
+  });
+  $("answerToggle").addEventListener("mousedown", (e) => e.preventDefault());
+  $("answerToggle").onclick = () => {
+    // Открыт полный список — кнопка его закрывает, список найденного — заменяет полным
+    if (!answerList.hidden && listAll) { closeAnswerList(); return; }
+    openAnswerList(true);
+    if (matchMedia("(pointer: fine)").matches) answerInput.focus();
+  };
+  $("answer").addEventListener("submit", (e) => { e.preventDefault(); submitAnswer(answerInput.value); });
 
   function renderEnd() {
     if (!game.end) return;
@@ -1085,7 +1326,11 @@
 
   /* ---------- Кнопки ---------- */
 
-  $("dunnoBtn").onclick = () => { if (!game.over && !game.hinted) { play("wrong"); game.attempts = 3; giveHint(); } };
+  $("dunnoBtn").onclick = () => {
+    if (game.over) return;
+    if (answerMode()) { play("wrong"); revealCapital(); return; }
+    if (!game.hinted) { play("wrong"); game.attempts = 3; giveHint(); }
+  };
   $("enoughBtn").onclick = () => { if (!game.over) finish(); };
   // Окно новой игры, открытое поверх игры, можно закрыть без изменений (при первом запуске — нельзя)
   $("menuBtn").onclick = () => { hideCard(); $("startClose").hidden = false; $("startModal").hidden = false; };
