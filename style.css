@@ -132,7 +132,7 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
 }
 .question-label { color: var(--muted); white-space: nowrap; }
 .question-value { font-size: 24px; font-weight: 600; }
-.question-value img { height: 52px; display: block; border: 1px solid var(--line); }
+.question-value img { height: 96px; display: block; border: 1px solid var(--line); }
 
 /* Поле для ответа столицей: пишут сами или выбирают в выпадающем списке */
 .question.answering { z-index: 2; flex-wrap: wrap; justify-content: center; row-gap: 8px; padding: 10px 14px 10px 20px; }
@@ -363,7 +363,7 @@ button.icon { width: 38px; padding: 7px 0; justify-content: center; }
   .actions button#menuBtn { width: 36px; padding: 0; justify-content: center; }
   .question { max-width: calc(100% - 24px); bottom: 10px; padding: 8px 14px; }
   .question-value { font-size: 18px; }
-  .question-value img { height: 36px; }
+  .question-value img { height: 60px; }
   .question.answering { width: calc(100% - 24px); padding: 8px 10px; }
   .answer, .combo { flex: 1; width: auto; }
   /* Поле ответа внизу — карточку на телефоне ставим сверху, чтобы она его не закрывала */
